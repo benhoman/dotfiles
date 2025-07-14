@@ -1,0 +1,18 @@
+session: code_review
+
+root: ~/src/github.com/bhoman-ca-code-review
+
+# before_start:
+    # - docker-compose -f docker-compose.yml up -d
+
+# stop:
+#     - docker stop $(docker ps -q)
+
+# env:
+#     SSHKEY: $(<~/.ssh/id_rsa)
+#     KNOWN_HOSTS: $(ssh-keyscan github.com)
+#     NPM_TOKEN: $(grep "_authToken" ~/.npmrc | cut -d"=" -f2)
+
+windows:
+    - name: initial
+    #   root: src # relative path to root

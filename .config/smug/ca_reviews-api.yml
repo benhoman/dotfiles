@@ -1,0 +1,8 @@
+session: reviews-api
+
+root: ~/src/github.com/bhoman-ca/reviews-api
+
+windows:
+    - name: code
+    - name: infra
+    - name: docker

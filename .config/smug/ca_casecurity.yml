@@ -1,0 +1,8 @@
+session: casecurity
+
+root: ~/src/github.com/bhoman-ca/casecurity
+
+windows:
+    - name: code
+    - name: infra
+    - name: docker

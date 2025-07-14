@@ -1,0 +1,20 @@
+session: aspect
+
+root: ~/src/github.com/bhoman-ca/brandsapp-redesign
+
+# before_start:
+    # - docker-compose -f docker-compose.yml up -d
+
+# stop:
+#     - docker stop $(docker ps -q)
+
+# env:
+#     SSHKEY: $(<~/.ssh/id_rsa)
+#     KNOWN_HOSTS: $(ssh-keyscan github.com)
+#     NPM_TOKEN: $(grep "_authToken" ~/.npmrc | cut -d"=" -f2)
+
+windows:
+    - name: code
+    - name: infra
+    - name: docker
+    #   root: src # relative path to root

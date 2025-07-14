@@ -1,0 +1,11 @@
+session: match-api
+
+root: ~/src/github.com/bhoman-ca/match-api
+
+windows:
+  - name: code
+  - name: infra
+  - name: docker
+  - name: git
+    commands:
+      - lazygit

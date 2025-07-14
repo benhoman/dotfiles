@@ -1,0 +1,8 @@
+session: platform-tools
+
+root: ~/src/github.com/bhoman-ca/platform-tools
+
+windows:
+    - name: code
+    - name: infra
+    - name: docker

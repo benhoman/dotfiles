@@ -1,0 +1,11 @@
+session: retool
+
+root: ~/src/github.com/bhoman-ca/retool-custom-components
+
+windows:
+  - name: code
+  - name: infra
+  - name: docker
+  - name: git
+    commands:
+      - lazygit

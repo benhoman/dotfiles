@@ -1,0 +1,8 @@
+session: catracking
+
+root: ~/src/github.com/bhoman-ca/catracking
+
+windows:
+    - name: code
+    - name: infra
+    - name: docker

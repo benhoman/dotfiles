@@ -50,3 +50,6 @@ alias pycleanup='find . -type f -name "*.py[co]" -delete -or -type d -name "__py
 # Docker
 alias dc='docker compose'
 alias dcu='docker compose up'
+
+alias ld="lazydocker"
+alias lg="lazygit"

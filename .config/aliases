@@ -29,8 +29,9 @@ alias .....="cd ../../../.."
 # Copy with progress bar
 alias cpv='rsync -ah --info=progress2'
 
-# Cd to root of git project
-alias cg='cd `git rev-parse --show-toplevel`'
+# Git
+alias gpuq="git pull upstream qa"
+alias cg='cd `git rev-parse --show-toplevel`' # cd root of git repo
 
 # Count files in directory
 alias count='find . -type f | wc -l'

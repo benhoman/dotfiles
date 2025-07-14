@@ -1,0 +1,51 @@
+# General
+alias sudo="sudo "
+alias e="nvim"
+alias vim="nvim"
+alias nf="neofetch"
+# alias weechat="ssh -t home tmux attach -d"
+# alias weechat_mosh="mosh weechat --no-init tmux attach"
+# alias weechat_local="podman run --rm -it --name weechat -e UID=1548 -e GID=1548 --security-opt label=disable -v ~/.config/weechat:/weechat/.weechat jkaberg/weechat"
+# alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
+
+alias l='exa'
+alias la='exa -a'
+alias ll='exa -lah'
+alias lm='exa -lah --color=always | less -r'
+alias ls='exa --color=auto'
+alias tree='exa --tree'
+
+# alias fd='fdfind'
+# alias bat='batcat'
+# alias cat='batcat --style=plain'
+alias sway_tree='swaymsg -t get_tree | jq -C | less -R'
+
+# cd Aliases
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+
+# Copy with progress bar
+alias cpv='rsync -ah --info=progress2'
+
+# Cd to root of git project
+alias cg='cd `git rev-parse --show-toplevel`'
+
+# Count files in directory
+alias count='find . -type f | wc -l'
+alias counttop='find . -maxdepth 1 -type f | wc -l'
+
+# SimpleHTTPServer
+alias servethis="python3 -m http.server"
+
+# Pacman
+# alias pacnew='rg pacnew /var/log/pacman.log'
+# alias pacnew='fd .pacnew /etc'
+
+# Python
+alias pycleanup='find . -type f -name "*.py[co]" -delete -or -type d -name "__pycache__" -delete'
+
+# Docker
+alias dc='docker compose'
+alias dcu='docker compose up'

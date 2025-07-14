@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+
+PROGNAME=$(basename $0)
+REPO=$(git rev-parse --show-toplevel)
+REPO_NAME=$(basename $REPO)
+DOCKER_COMPOSE_FILE=$(find $REPO -type f -name docker-compose.yml -print -quit)
+
+_get_app_name() {
+  if [[ $REPO_NAME == "brands" ]]; then
+    echo "web"
+  elif [[ $REPO_NAME == "reviews-api" ]]; then
+    echo "api"
+  else
+    docker compose -f $DOCKER_COMPOSE_FILE config --services | grep "django" | head -n1
+  fi
+}
+
+_get_task_name() {
+  docker compose -f $DOCKER_COMPOSE_FILE config --services | grep -E "celery-worker-|dramatiq-" | head -n1
+}
+
+_app_running() {
+  docker compose ps --services --filter "status=running" | grep -q "$APP_NAME"
+}
+
+_exec_run() {
+  if _app_running; then
+    docker compose exec -e PYTHONWARNINGS=ignore $APP_NAME $@
+  else
+    docker compose run -e PYTHONWARNINGS=ignore --rm $APP_NAME $@
+  fi
+}
+
+_exec_run_env() {
+  if _app_running; then
+    docker compose exec -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" $APP_NAME $@
+  else
+    docker compose run -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" --rm $APP_NAME $@
+  fi
+}
+
+_pytest_convert() {
+  # converts
+  # app.misc.tests.test_tasks.SalesForceTest.test_send_to_salesforce
+  # app/misc/tests/test_tasks.py::SalesForceTest::test_send_to_salesforce
+  s="$1"
+  words=(${s//./ })
+  idx=""
+  for i in "${!words[@]}"; do
+    if [[ ${words[i]:0:1} == [[:upper:]] ]]; then
+      idx="$i"
+      break
+    fi
+  done
+  if [[ -z "$idx" ]]; then
+    file_path="${words[*]}"
+    echo "${file_path// //}.py"
+  else
+    file_path="${words[*]:0:idx}"
+    methods="${words[*]:idx}"
+    echo "${file_path// //}.py::${methods// /::}"
+  fi
+}
+
+APP_NAME=$(_get_app_name)
+TAKS_NAME=$(_get_task_name)
+
+if [[ $TAS == *"celery"* ]]; then
+  TLOG_FILE="celery-celery.log"
+else
+  TLOG_FILE="dramatiq.log"
+fi
+
+sub_help() {
+  echo "Usage: $PROGNAME <subcommand> [options]\n"
+  echo "Subcommands:"
+  echo "  app             Print determined app name"
+  echo "  bash            Open bash shell"
+  echo "  build           Build docker image"
+  echo "  manage          Run manage.py"
+  echo "  migrate         Run migrations"
+  echo "  makemigrations  Run makemigrations"
+  echo "  pip-compile     Compile python dependencies"
+  echo "  reup            Up and down"
+  echo "  run             Run command in container"
+  echo "  shell           Open django shell"
+  echo "  showmigrations  Show migrations"
+  echo "  superuser       Create Superuser"
+  echo "  term            Open terminal"
+  echo "  test            Run Tests"
+  echo "  pytest          Run Tests with pytest"
+  echo "  has_pytest      Project has pytest installed"
+  echo ""
+}
+
+sub_app() {
+  echo "$APP_NAME"
+}
+
+sub_bash() {
+  _exec_run bash
+}
+
+sub_build() {
+  if [[ $REPO_NAME == "silverback" ]]; then
+    echo "###################################"
+    echo "# Building silverback base images #"
+    echo "###################################"
+    SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build $@ be-build-base fe-build-base
+  fi
+  echo "###################"
+  echo "# Building images #"
+  echo "###################"
+  SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build $@
+}
+
+sub_makemigrations() {
+  _exec_run python manage.py makemigrations $@
+}
+
+sub_manage() {
+  _exec_run python manage.py $@
+}
+
+sub_migrate() {
+  _exec_run python manage.py migrate $@
+}
+
+sub_pip-compile() {
+  _exec_run_env ./bin/pip-compile.sh
+}
+
+sub_compile-requirements() {
+  _exec_run_env ./bin/compile-requirements.sh
+}
+
+sub_shell() {
+  if rg -q "django-extensions" $REPO/requirements*; then
+    SHELL_COMMAND="shell_plus"
+  else
+    SHELL_COMMAND="shell"
+  fi
+  sub_manage $SHELL_COMMAND $@
+}
+
+sub_showmigrations() {
+  sub_manage showmigrations $@
+}
+
+sub_sqlmigrate() {
+  sub_manage sqlmigrate $@
+}
+
+sub_superuser() {
+  sub_manage createsuperuser $@
+}
+
+sub_reup() {
+  docker compose down && docker compose up
+}
+
+sub_run() {
+  _exec_run $@
+}
+
+sub_term() {
+  _exec_run sh $@
+}
+
+sub_test() {
+  if [[ $REPO_NAME =~ ^(silverback|match-api|dbus)$ ]]; then
+    _exec_run pytest $@
+  else
+    sub_manage test --failfast $@
+  fi
+}
+
+sub_pytest() {
+  _exec_run pytest $@
+}
+
+sub_ruff() {
+  ruff format .
+  ruff check .
+}
+
+sub_has_pytest() {
+  rg -q "pytest" $REPO/requirements*
+}
+
+sub_magictest() {
+  if [[ $REPO_NAME =~ ^(silverback|match-api|reviews-api|reviews-moderation|dbus|consumeraffairs)$ ]]; then
+    test_path=${@: -1}
+    echo "running pytest"
+    last_arg=$(_pytest_convert $test_path)
+    echo $last_arg
+    set -- "pytest" $last_arg
+    if [[ $REPO_NAME == "reviews-moderation" ]]; then
+      pytest $@
+    else
+      _exec_run $@
+    fi
+  else
+    sub_test $@
+  fi
+}
+
+subcommand=$1
+case $subcommand in
+"" | "-h" | "--help")
+  sub_help
+  ;;
+*)
+  shift
+  sub_${subcommand} $@
+  if [ $? = 127 ]; then
+    echo "Error: '$subcommand' is not a known subcommand." >&2
+    echo "       Run '$PROGNAME --help' for a list of known subcommands." >&2
+    exit 1
+  fi
+  ;;
+esac

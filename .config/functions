@@ -39,3 +39,7 @@ function python_throwaway () {
 function get_latest_github_release () {
     curl --silent -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$1/releases/latest | grep '"tag_name":' | cut -d'"' -f4
 }
+
+function twingate_auth () {
+    xdg-open "$(twingate status | grep -Eo "https://[^ >]+" | head -n1)"
+}

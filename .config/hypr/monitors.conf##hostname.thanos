@@ -1,8 +1,0 @@
-# Change to 1 if on a 1x display (then change last "auto" to 1 in monitor=)
-# Change to something like 1.75 for fractional scaling (can work well with 1.66667 monitor scaling)
-env = GDK_SCALE,1
-
-# monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
-# monitor = desc:AOC U3477 0x0000007C		, 3440x1440 , auto-up, auto, transform , 2
-monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
-monitor = desc:AOC U3477 0x0000007C, disable

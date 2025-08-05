@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-PROGNAME=$(basename $0)
+PROGNAME=$(basename "$0")
 REPO=$(git rev-parse --show-toplevel)
-REPO_NAME=$(basename $REPO)
-DOCKER_COMPOSE_FILE=$(find $REPO -type f -name docker-compose.yml -print -quit)
+REPO_NAME=$(basename "$REPO")
+DOCKER_COMPOSE_FILE=$(find "$REPO" -type f -name docker-compose.yml -print -quit)
+
+if [[ ! -f "$DOCKER_COMPOSE_FILE" ]]; then
+  echo "Error: No docker-compose.yml found in $REPO" >&2
+  exit 1
+fi
 
 _get_app_name() {
   if [[ $REPO_NAME == "brands" ]]; then
@@ -11,12 +17,17 @@ _get_app_name() {
   elif [[ $REPO_NAME == "reviews-api" ]]; then
     echo "api"
   else
-    docker compose -f $DOCKER_COMPOSE_FILE config --services | grep "django" | head -n1
+    local app_name=$(docker compose -f "$DOCKER_COMPOSE_FILE" config --services | grep "django" | head -n1)
+    if [[ -z "$app_name" ]]; then
+      echo "Error: No django service found" >&2
+      exit 1
+    fi
+    echo "$app_name"
   fi
 }
 
 _get_task_name() {
-  docker compose -f $DOCKER_COMPOSE_FILE config --services | grep -E "celery-worker-|dramatiq-" | head -n1
+  docker compose -f "$DOCKER_COMPOSE_FILE" config --services | grep -E "celery-worker-|dramatiq-" | head -n1
 }
 
 _app_running() {
@@ -25,17 +36,17 @@ _app_running() {
 
 _exec_run() {
   if _app_running; then
-    docker compose exec -e PYTHONWARNINGS=ignore $APP_NAME $@
+    docker compose exec -e PYTHONWARNINGS=ignore "$APP_NAME" "$@"
   else
-    docker compose run -e PYTHONWARNINGS=ignore --rm $APP_NAME $@
+    docker compose run -e PYTHONWARNINGS=ignore --rm "$APP_NAME" "$@"
   fi
 }
 
 _exec_run_env() {
   if _app_running; then
-    docker compose exec -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" $APP_NAME $@
+    docker compose exec -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" "$APP_NAME" "$@"
   else
-    docker compose run -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" --rm $APP_NAME $@
+    docker compose run -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" --rm "$APP_NAME" "$@"
   fi
 }
 
@@ -63,9 +74,9 @@ _pytest_convert() {
 }
 
 APP_NAME=$(_get_app_name)
-TAKS_NAME=$(_get_task_name)
+TASK_NAME=$(_get_task_name)
 
-if [[ $TAS == *"celery"* ]]; then
+if [[ $TASK_NAME == *"celery"* ]]; then
   TLOG_FILE="celery-celery.log"
 else
   TLOG_FILE="dramatiq.log"
@@ -90,6 +101,7 @@ sub_help() {
   echo "  test            Run Tests"
   echo "  pytest          Run Tests with pytest"
   echo "  has_pytest      Project has pytest installed"
+  echo "  logs            Show container logs"
   echo ""
 }
 
@@ -106,12 +118,12 @@ sub_build() {
     echo "###################################"
     echo "# Building silverback base images #"
     echo "###################################"
-    SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build $@ be-build-base fe-build-base
+    SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build "$@" be-build-base fe-build-base
   fi
   echo "###################"
   echo "# Building images #"
   echo "###################"
-  SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build $@
+  SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build "$@"
 }
 
 sub_makemigrations() {
@@ -135,12 +147,12 @@ sub_compile-requirements() {
 }
 
 sub_shell() {
-  if rg -q "django-extensions" $REPO/requirements*; then
+  if rg -q "django-extensions" "$REPO"/requirements*; then
     SHELL_COMMAND="shell_plus"
   else
     SHELL_COMMAND="shell"
   fi
-  sub_manage $SHELL_COMMAND $@
+  sub_manage "$SHELL_COMMAND" "$@"
 }
 
 sub_showmigrations() {
@@ -181,11 +193,15 @@ sub_pytest() {
 
 sub_ruff() {
   ruff format .
-  ruff check .
+  ruff check --fix .
 }
 
 sub_has_pytest() {
-  rg -q "pytest" $REPO/requirements*
+  rg -q "pytest" "$REPO"/requirements*
+}
+
+sub_logs() {
+  docker compose logs -f "$APP_NAME" "$@"
 }
 
 sub_magictest() {

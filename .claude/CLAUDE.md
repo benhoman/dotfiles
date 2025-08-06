@@ -94,3 +94,14 @@ The `ca` script provides these shortcuts:
 - Code blocks use `{"type": "text", "text": "code", "marks": [{"type": "code"}]}`
 - Headings use `{"type": "heading", "attrs": {"level": 3}, "content": [...]}`
 
+## Git Staging Guidelines
+
+### Explicit File Staging
+
+- **Never use `git add .`** to stage changes
+- Always specify files explicitly when staging:
+  - `git add specific_file.py` for individual files
+  - `git add src/` for specific directories
+  - `git add *.js` for file patterns when appropriate
+- This ensures intentional staging and prevents accidental commits of unwanted files
+

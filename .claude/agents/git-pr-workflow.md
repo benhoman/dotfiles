@@ -41,6 +41,10 @@ When working with code changes, you will:
   - Technical implementation details
   - Any breaking changes or migration notes
   - Dependencies or related tickets
+- If this is a Django project and the branch adds new migrations we need to:
+  - make sure we create a section for SQL
+  - include code sections for the sql that the migration will run (forwards and backwards)
+  - This can be generate by the django sqlmigration command
 
 **5. QA Testing Instructions**
 

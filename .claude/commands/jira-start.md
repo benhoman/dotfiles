@@ -18,12 +18,20 @@
      - JIRA ticket URL for reference
 
 2. **Git Workflow Automation**:
-   - Runs a single chained command for efficiency: `git checkout qa && git pull && git pull upstream qa && git push && git checkout -b <ticket-number>-<sanitized-title>`
+   - Creates a git worktree with a new branch based off upstream qa
+   - Command: `mkdir -p worktrees && git fetch upstream qa && git worktree add worktrees/<ticket-number> upstream/qa && cd worktrees/<ticket-number> && git checkout -b <ticket-number>-<sanitized-title>`
+   - Ticket number is converted to uppercase
    - Title is converted to lowercase, spaces to dashes, non-alphanumeric removed
-   - Uses `&&` operators so the chain stops if any step fails
+   - Creates worktree as a subdirectory to keep everything contained
+   - Changes to the worktree directory for continued work
    - **Requires only one permission approval** for all git operations
 
-3. **User Review & Confirmation**:
+3. **Worktree Navigation**:
+   - Automatically changes to the new worktree directory after creation
+   - All subsequent Claude Code operations will happen in the worktree
+   - Ensures work is isolated from the main repository
+
+4. **User Review & Confirmation**:
    - Shows ticket details first, then requests approval for assessing the ticket request and coming up with a suggested plan to show the user.
    - Provides planning guidance for implementation
 
@@ -45,4 +53,3 @@ This command leverages Claude's MCP Atlassian integration to:
 - Provide rich ticket information display
 
 The git operations include full error handling and will stop execution if any step fails, ensuring your repository stays in a clean state.
-

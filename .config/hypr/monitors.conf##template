@@ -16,11 +16,11 @@ env = GDK_SCALE,1
 # monitor = eDP-1, 2880x1920@120.00, auto, 2
 
 {% if yadm.hostname == "thanos" %}
-# monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
-# monitor = desc:AOC U3477 0x0000007C		, 3440x1440 , auto-up, auto, transform , 2
-# monitor = desc:Samsung Electric Company U28E590 HTPK203929, 3440x2160, auto, 1.666667
 monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
-monitor = desc:AOC U3477 0x0000007C, disable
+monitor = desc:AOC U3477 0x0000007C		, 3440x1440 , auto-up, auto, transform , 2
+# monitor = desc:Samsung Electric Company U28E590 HTPK203929, 3440x2160, auto, 1.666667
+# monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
+# monitor = desc:AOC U3477 0x0000007C, disable
 {% else %}
 monitor=,preferred,auto,auto
 {% endif %}

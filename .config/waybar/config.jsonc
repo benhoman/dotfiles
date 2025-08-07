@@ -5,10 +5,12 @@
   "spacing": 0,
   "height": 26,
   "modules-left": [
+    "custom/omarchy",
     "hyprland/workspaces"
   ],
   "modules-center": [
     "clock",
+    "custom/update",
     "custom/claude-usage"
   ],
   "modules-right": [
@@ -42,6 +44,25 @@
       //   "4": [],
       //   "5": []
     }
+  },
+  "custom/claude-usage": {
+    "format": "🤖 {}",
+    "format-alt": "🤖 {alt}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/claude-usage.sh",
+    "interval": 60,
+    "on-click": ""
+  },
+  "custom/omarchy": {
+    "format": "",
+    "on-click": "~/.local/share/omarchy/bin/omarchy-menu",
+    "tooltip-format": "SUPER + ALT + SPACE"
+  },
+  "custom/update": {
+    "format": "",
+    "exec": "~/.local/share/omarchy/bin/omarchy-update-available",
+    "on-click": "alacritty --class Omarchy --title Omarchy -e omarchy-update",
+    "interval": 3600
   },
   "cpu": {
     "interval": 5,
@@ -149,14 +170,6 @@
   "custom/expand-icon": {
     "format": " ",
     "tooltip": false
-  },
-  "custom/claude-usage": {
-    "format": "🤖 {}",
-    "format-alt": "🤖 {alt}",
-    "return-type": "json",
-    "exec": "~/.config/waybar/scripts/claude-usage.sh",
-    "interval": 60,
-    "on-click": ""
   },
   "tray": {
     "icon-size": 12,

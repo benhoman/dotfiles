@@ -78,3 +78,9 @@ pyrightconfig.json
 # Mise #
 ########
 mise.toml
+
+**/.claude/settings.local.json
+
+# Git #
+#######
+**/worktrees

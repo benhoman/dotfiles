@@ -1,4 +1,15 @@
 {
+  "mcp": {
+    "autoApprove": {
+      "tools": [
+        "mcp__mcp-atlassian__getAccessibleAtlassianResources",
+        "mcp__mcp-atlassian__getJiraIssue",
+        "mcp__mcp-atlassian__searchJiraIssuesUsingJql",
+        "mcp__mcp-atlassian__getConfluenceSpaces",
+        "mcp__mcp-atlassian__getConfluencePage"
+      ]
+    }
+  },
   "model": "sonnet[1m]",
   "statusLine": {
     "type": "command",

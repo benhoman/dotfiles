@@ -296,42 +296,166 @@ _worktree_bootstrap() {
     echo "Detected ticket number: $ticket_number"
   fi
   
-  # Determine source and target database directories
-  local source_db_dir="$REPO/../pgdata/qa"
-  local target_db_dir="$REPO/../pgdata/$ticket_number"
+  # Handle pgdata operations only if the pgdata directory exists
+  local pgdata_parent_dir="$REPO/../pgdata"
+  local override_created=false
   
-  # Check if source database directory exists
-  if [[ ! -d "$source_db_dir" ]]; then
-    echo "Warning: Source database directory '$source_db_dir' does not exist"
-    echo "Creating empty database directory for '$ticket_number'"
-    mkdir -p "$target_db_dir"
-  else
-    echo "Copying database from qa to $ticket_number..."
+  if [[ -d "$pgdata_parent_dir" ]]; then
+    echo "Found pgdata directory, setting up database isolation..."
     
-    # Check if target already exists
-    if [[ -d "$target_db_dir" ]]; then
-      echo "Warning: Target database directory '$target_db_dir' already exists"
-      read -p "Overwrite existing database? [y/N]: " confirm
-      if [[ ! $confirm =~ ^[Yy]$ ]]; then
-        echo "Skipping database copy"
-      else
-        rm -rf "$target_db_dir"
-      fi
-    fi
+    # Determine source and target database directories
+    local source_db_dir="$pgdata_parent_dir/qa"
+    local target_db_dir="$pgdata_parent_dir/$ticket_number"
     
-    # Check if source is a btrfs subvolume
-    if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$source_db_dir" >/dev/null 2>&1; then
-      echo "Source is a btrfs subvolume, creating read-write snapshot..."
-      sudo btrfs subvolume snapshot "$source_db_dir" "$target_db_dir"
-      echo "Created btrfs snapshot: $target_db_dir"
+    # Check if source database directory exists
+    if [[ ! -d "$source_db_dir" ]]; then
+      echo "Warning: Source database directory '$source_db_dir' does not exist"
+      echo "Creating empty database directory for '$ticket_number'"
+      mkdir -p "$target_db_dir"
     else
-      # Regular directory copy
-      if [[ ! -d "$target_db_dir" ]]; then
-        echo "Copying database directory..."
-        sudo cp -r "$source_db_dir" "$target_db_dir"
-        echo "Copied database to: $target_db_dir"
+      echo "Copying database from qa to $ticket_number..."
+      
+      # Check if target already exists
+      if [[ -d "$target_db_dir" ]]; then
+        echo "Warning: Target database directory '$target_db_dir' already exists"
+        read -p "Overwrite existing database? [y/N]: " confirm
+        if [[ ! $confirm =~ ^[Yy]$ ]]; then
+          echo "Skipping database copy"
+        else
+          rm -rf "$target_db_dir"
+        fi
+      fi
+      
+      # Check if source is a btrfs subvolume
+      if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$source_db_dir" >/dev/null 2>&1; then
+        echo "Source is a btrfs subvolume, creating read-write snapshot..."
+        sudo btrfs subvolume snapshot "$source_db_dir" "$target_db_dir"
+        echo "Created btrfs snapshot: $target_db_dir"
+      else
+        # Regular directory copy
+        if [[ ! -d "$target_db_dir" ]]; then
+          echo "Copying database directory..."
+          sudo cp -r "$source_db_dir" "$target_db_dir"
+          echo "Copied database to: $target_db_dir"
+        fi
       fi
     fi
+    
+    # Create docker-compose.override.yml for database volume override
+    echo "Creating docker-compose.override.yml for database isolation..."
+    cat > "$REPO/docker-compose.override.yml" << EOF
+volumes:
+  pgdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../pgdata/$ticket_number
+EOF
+    override_created=true
+  else
+    echo "No pgdata directory found, skipping database isolation setup"
+  fi
+  
+  # Fix image naming issues for services that reference built images
+  echo "Checking for image naming issues in docker-compose.yml..."
+  local worktree_name=$(basename "$REPO")
+  local services_with_image_fixes=()
+  
+  # Get the full docker-compose config once
+  local compose_config=$(docker compose -f "$DOCKER_COMPOSE_FILE" config 2>&1 | grep -v "^WARN\[")
+  
+  # Get all services that have build contexts (these create images)
+  local buildable_services=()
+  while read -r service; do
+    if echo "$compose_config" | grep -A 20 "^  $service:" | grep -q "^    build:"; then
+      buildable_services+=("$service")
+      echo "  Buildable service found: $service"
+    fi
+  done < <(docker compose -f "$DOCKER_COMPOSE_FILE" config --services 2>&1 | grep -v "^WARN\[")
+  
+  # Check each service for image references that need fixing
+  while read -r service; do
+    local image_line=$(echo "$compose_config" | grep -A 20 "^  $service:" | grep "^    image:" | head -1)
+    
+    if [[ -n "$image_line" ]]; then
+      local image_name=$(echo "$image_line" | sed 's/^    image: //' | tr -d '"' | tr -d "'")
+      echo "  Service $service has image: $image_name"
+      
+      # Check if image follows pattern: {prefix}_{service_name}
+      if [[ "$image_name" =~ ^([^_]+)_(.+)$ ]]; then
+        local current_prefix="${BASH_REMATCH[1]}"
+        local image_suffix="${BASH_REMATCH[2]}"
+        
+        # Check if this image suffix matches any buildable service (with dash-to-underscore conversion)
+        for buildable_service in "${buildable_services[@]}"; do
+          local buildable_with_underscore="${buildable_service//-/_}"
+          if [[ "$image_suffix" == "$buildable_service" || "$image_suffix" == "$buildable_with_underscore" ]]; then
+            local new_image_name="${worktree_name}_${image_suffix}"
+            services_with_image_fixes+=("$service:$new_image_name")
+            echo "  ✅ Found image fix needed: $service ($image_name -> $new_image_name)"
+            break
+          fi
+        done
+      fi
+    fi
+  done < <(docker compose -f "$DOCKER_COMPOSE_FILE" config --services)
+  
+  # Create or update docker-compose.override.yml with image fixes
+  if [[ ${#services_with_image_fixes[@]} -gt 0 ]]; then
+    echo "Creating/updating docker-compose.override.yml with image fixes..."
+    
+    local override_file="$REPO/docker-compose.override.yml"
+    local temp_override=""
+    
+    # Check if override file exists and has services section not created by us
+    local override_has_manual_changes=false
+    if [[ -f "$override_file" && "$override_created" == false ]]; then
+      if grep -q "^services:" "$override_file" 2>/dev/null; then
+        echo "⚠️  Existing docker-compose.override.yml found with services section"
+        read -p "This may overwrite manual customizations. Continue? [y/N]: " confirm
+        if [[ ! $confirm =~ ^[Yy]$ ]]; then
+          echo "Skipping image fixes to preserve existing override file"
+          echo "💡 You can manually add these image overrides:"
+          for service_fix in "${services_with_image_fixes[@]}"; do
+            local service_name="${service_fix%%:*}"
+            local new_image="${service_fix##*:}"
+            echo "   $service_name -> image: $new_image"
+          done
+          return
+        fi
+        override_has_manual_changes=true
+      fi
+    fi
+    
+    # Start building the override content
+    if [[ "$override_created" == true ]]; then
+      # Read our previously created override file and append services section
+      temp_override=$(cat "$override_file")
+      temp_override="$temp_override"$'\n'"services:"
+    elif [[ "$override_has_manual_changes" == true ]]; then
+      # Preserve existing content and append our services
+      temp_override=$(cat "$override_file")
+      if ! grep -q "^services:" "$override_file"; then
+        temp_override="$temp_override"$'\n'"services:"
+      fi
+    else
+      temp_override="services:"
+    fi
+    
+    # Add each service that needs image fixing
+    for service_fix in "${services_with_image_fixes[@]}"; do
+      local service_name="${service_fix%%:*}"
+      local new_image="${service_fix##*:}"
+      temp_override="$temp_override"$'\n'"  $service_name:"$'\n'"    image: $new_image"
+    done
+    
+    # Write the complete override file
+    echo "$temp_override" > "$override_file"
+    echo "✅ Updated docker-compose.override.yml with ${#services_with_image_fixes[@]} image fixes"
+    override_created=true
+  else
+    echo "❌ No image naming issues detected"
   fi
   
   # Copy configuration files from main repository to worktree
@@ -405,21 +529,11 @@ _worktree_bootstrap() {
     done
   fi
   
-  # Create docker-compose.override.yml
-  echo "Creating docker-compose.override.yml..."
-  cat > "$REPO/docker-compose.override.yml" << EOF
-volumes:
-  pgdata:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ../pgdata/$ticket_number
-EOF
-  
   echo "✅ Bootstrap complete!"
-  echo "   Database directory: ../pgdata/$ticket_number"
-  echo "   Override file: docker-compose.override.yml"
+  if [[ "$override_created" == true ]]; then
+    echo "   Database directory: ../pgdata/$ticket_number"
+    echo "   Override file: docker-compose.override.yml"
+  fi
   if [[ ${#files_copied[@]} -gt 0 ]]; then
     echo "   Configuration files: ${files_copied[*]}"
   fi
@@ -447,13 +561,16 @@ _worktree_cleanup() {
     echo "Detected ticket number: $ticket_number"
   fi
   
-  local db_dir="$REPO/../pgdata/$ticket_number"
+  local pgdata_parent_dir="$REPO/../pgdata"
+  local db_dir="$pgdata_parent_dir/$ticket_number"
   local worktree_dir="$REPO"
   local parent_dir=$(dirname "$REPO")
   
   echo "🧹 Worktree cleanup for $ticket_number"
   echo "   Worktree: $worktree_dir"
-  echo "   Database: $db_dir"
+  if [[ -d "$pgdata_parent_dir" ]]; then
+    echo "   Database: $db_dir"
+  fi
   echo ""
   
   # Confirm cleanup
@@ -463,26 +580,30 @@ _worktree_cleanup() {
     exit 0
   fi
   
-  # Step 1: Stop and remove containers
-  echo "🔻 Stopping Docker containers..."
+  # Step 1: Stop and remove containers with volumes
+  echo "🔻 Stopping Docker containers and removing volumes..."
   if [[ -f "$REPO/docker-compose.yml" ]] || [[ -f "$REPO/docker-compose.override.yml" ]]; then
-    docker compose down 2>/dev/null || echo "No containers to stop"
+    docker compose down --volumes 2>&1 | grep -v "^WARN\[" || echo "No containers to stop"
   fi
   
-  # Step 2: Remove database directory
-  if [[ -d "$db_dir" ]]; then
-    echo "🗑️  Removing database directory: $db_dir"
-    
-    # Check if it's a btrfs subvolume
-    if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$db_dir" >/dev/null 2>&1; then
-      echo "Deleting btrfs subvolume..."
-      sudo btrfs subvolume delete "$db_dir"
+  # Step 2: Remove database directory (only if pgdata parent exists)
+  if [[ -d "$pgdata_parent_dir" ]]; then
+    if [[ -d "$db_dir" ]]; then
+      echo "🗑️  Removing database directory: $db_dir"
+      
+      # Check if it's a btrfs subvolume
+      if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$db_dir" >/dev/null 2>&1; then
+        echo "Deleting btrfs subvolume..."
+        sudo btrfs subvolume delete "$db_dir"
+      else
+        sudo rm -rf "$db_dir"
+      fi
+      echo "Database directory removed"
     else
-      sudo rm -rf "$db_dir"
+      echo "Database directory not found: $db_dir"
     fi
-    echo "Database directory removed"
   else
-    echo "Database directory not found: $db_dir"
+    echo "No pgdata directory found, skipping database cleanup"
   fi
   
   # Step 3: Remove worktree

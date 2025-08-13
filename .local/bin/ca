@@ -102,6 +102,7 @@ sub_help() {
   echo "  pytest          Run Tests with pytest"
   echo "  has_pytest      Project has pytest installed"
   echo "  logs            Show container logs"
+  echo "  worktree            Worktree management (bootstrap, cleanup)"
   echo ""
 }
 
@@ -219,6 +220,307 @@ sub_magictest() {
   else
     sub_test $@
   fi
+}
+
+_worktree_help() {
+  echo "Usage: $PROGNAME worktree <subcommand> [options]"
+  echo ""
+  echo "Subcommands:"
+  echo "  bootstrap    Bootstrap worktree with custom database directory"
+  echo "  cleanup      Clean up worktree (stop containers, remove database, remove worktree)"
+  echo ""
+}
+
+_worktree_check() {
+  # Check if we're in a git worktree (not the main repository)
+  local git_dir=$(git rev-parse --git-dir 2>/dev/null)
+  local git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+  
+  if [[ -z "$git_dir" ]]; then
+    echo "Error: Not in a git repository" >&2
+    echo "Worktree commands must be run from within a git worktree" >&2
+    exit 1
+  fi
+  
+  # Additional check: ensure we're not in a bare repository
+  if git rev-parse --is-bare-repository >/dev/null 2>&1 && [[ "$(git rev-parse --is-bare-repository)" == "true" ]]; then
+    echo "Error: Cannot run worktree commands in a bare repository" >&2
+    exit 1
+  fi
+  
+  # In a worktree, git-dir and git-common-dir are different
+  # In the main repo, they are the same
+  if [[ "$git_dir" == "$git_common_dir" ]]; then
+    echo "Error: Worktree commands can only be run from within a git worktree, not the main repository" >&2
+    echo "" >&2
+    echo "Current location appears to be the main repository." >&2
+    echo "To create a worktree: git worktree add ../TICKET-NUMBER origin/branch-name" >&2
+    echo "Then cd into the worktree directory and run the command again." >&2
+    exit 1
+  fi
+  
+  # If we get here, we're in a worktree - show some helpful info
+  local worktree_dir=$(basename "$REPO")
+  echo "ℹ️  Running in worktree: $worktree_dir"
+}
+
+_worktree_extract_ticket_number() {
+  local current_dir=$(basename "$REPO")
+  local ticket_number=""
+  
+  # Try to extract ticket number (e.g., PDW-1234 from various formats)
+  if [[ $current_dir =~ ([A-Z]+-[0-9]+) ]]; then
+    ticket_number="${BASH_REMATCH[1]}"
+    echo "$ticket_number"
+  else
+    return 1
+  fi
+}
+
+_worktree_bootstrap() {
+  # Ensure we're in a worktree
+  _worktree_check
+  
+  # Extract ticket number from current directory name
+  local ticket_number
+  ticket_number=$(_worktree_extract_ticket_number)
+  
+  if [[ -z "$ticket_number" ]]; then
+    echo "Warning: Could not detect ticket number from directory name '$(basename "$REPO")'"
+    read -p "Enter ticket number (e.g., PDW-1234): " ticket_number
+    if [[ -z "$ticket_number" ]]; then
+      echo "Error: Ticket number is required for database directory naming"
+      exit 1
+    fi
+  else
+    echo "Detected ticket number: $ticket_number"
+  fi
+  
+  # Determine source and target database directories
+  local source_db_dir="$REPO/../pgdata/qa"
+  local target_db_dir="$REPO/../pgdata/$ticket_number"
+  
+  # Check if source database directory exists
+  if [[ ! -d "$source_db_dir" ]]; then
+    echo "Warning: Source database directory '$source_db_dir' does not exist"
+    echo "Creating empty database directory for '$ticket_number'"
+    mkdir -p "$target_db_dir"
+  else
+    echo "Copying database from qa to $ticket_number..."
+    
+    # Check if target already exists
+    if [[ -d "$target_db_dir" ]]; then
+      echo "Warning: Target database directory '$target_db_dir' already exists"
+      read -p "Overwrite existing database? [y/N]: " confirm
+      if [[ ! $confirm =~ ^[Yy]$ ]]; then
+        echo "Skipping database copy"
+      else
+        rm -rf "$target_db_dir"
+      fi
+    fi
+    
+    # Check if source is a btrfs subvolume
+    if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$source_db_dir" >/dev/null 2>&1; then
+      echo "Source is a btrfs subvolume, creating read-write snapshot..."
+      sudo btrfs subvolume snapshot "$source_db_dir" "$target_db_dir"
+      echo "Created btrfs snapshot: $target_db_dir"
+    else
+      # Regular directory copy
+      if [[ ! -d "$target_db_dir" ]]; then
+        echo "Copying database directory..."
+        sudo cp -r "$source_db_dir" "$target_db_dir"
+        echo "Copied database to: $target_db_dir"
+      fi
+    fi
+  fi
+  
+  # Copy configuration files from main repository to worktree
+  echo "Copying configuration files..."
+  local git_common_dir=$(git rev-parse --git-common-dir)
+  local main_repo_dir=$(dirname "$git_common_dir")
+  local files_copied=()
+  
+  # Check for copy list file first
+  # File format: source_path[:destination_path] (one per line)
+  # If destination_path is omitted, source_path is used as destination
+  # Example ca-copy-list content:
+  #   # Configuration files
+  #   .env:.env          # explicit source:destination
+  #   .env               # destination defaults to source (.env)
+  #   config/settings.json:config/settings.json  # explicit
+  #   config/dev.json    # destination defaults to source
+  #   scripts/init.sh:bin/init.sh  # different destination
+  local copy_list_file="$main_repo_dir/ca-copy-list"
+  if [[ -f "$copy_list_file" ]]; then
+    echo "  Found copy list file: ca-copy-list"
+    while IFS=':' read -r source_path dest_path; do
+      # Skip empty lines and comments
+      [[ -z "$source_path" || "$source_path" =~ ^[[:space:]]*# ]] && continue
+      
+      # Trim whitespace
+      source_path=$(echo "$source_path" | xargs)
+      dest_path=$(echo "$dest_path" | xargs)
+      
+      # If no destination path provided, use source path
+      [[ -z "$dest_path" ]] && dest_path="$source_path"
+      
+      local source_file="$main_repo_dir/$source_path"
+      local target_file="$REPO/$dest_path"
+      
+      # Create target directory if it doesn't exist
+      local target_dir=$(dirname "$target_file")
+      [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
+      
+      if [[ -f "$source_file" ]]; then
+        if [[ -f "$target_file" ]]; then
+          echo "  $dest_path already exists in worktree, skipping"
+        else
+          cp "$source_file" "$target_file"
+          files_copied+=("$dest_path")
+          echo "  ✅ Copied $source_path -> $dest_path"
+        fi
+      else
+        echo "  ⚠️  $source_path not found in main repository"
+      fi
+    done < "$copy_list_file"
+  else
+    # Fallback to hardcoded list
+    local files_to_copy=(".env")
+    
+    for file in "${files_to_copy[@]}"; do
+      local source_file="$main_repo_dir/$file"
+      local target_file="$REPO/$file"
+      
+      if [[ -f "$source_file" ]]; then
+        if [[ -f "$target_file" ]]; then
+          echo "  $file already exists in worktree, skipping"
+        else
+          cp "$source_file" "$target_file"
+          files_copied+=("$file")
+          echo "  ✅ Copied $file"
+        fi
+      else
+        echo "  ⚠️  $file not found in main repository"
+      fi
+    done
+  fi
+  
+  # Create docker-compose.override.yml
+  echo "Creating docker-compose.override.yml..."
+  cat > "$REPO/docker-compose.override.yml" << EOF
+volumes:
+  pgdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../pgdata/$ticket_number
+EOF
+  
+  echo "✅ Bootstrap complete!"
+  echo "   Database directory: ../pgdata/$ticket_number"
+  echo "   Override file: docker-compose.override.yml"
+  if [[ ${#files_copied[@]} -gt 0 ]]; then
+    echo "   Configuration files: ${files_copied[*]}"
+  fi
+  echo ""
+  echo "To start using the isolated database:"
+  echo "   docker-compose down && docker-compose up"
+}
+
+_worktree_cleanup() {
+  # Ensure we're in a worktree
+  _worktree_check
+  
+  # Extract ticket number from current directory name
+  local ticket_number
+  ticket_number=$(_worktree_extract_ticket_number)
+  
+  if [[ -z "$ticket_number" ]]; then
+    echo "Warning: Could not detect ticket number from directory name '$(basename "$REPO")'"
+    read -p "Enter ticket number for database cleanup (e.g., PDW-1234): " ticket_number
+    if [[ -z "$ticket_number" ]]; then
+      echo "Error: Ticket number is required for database cleanup"
+      exit 1
+    fi
+  else
+    echo "Detected ticket number: $ticket_number"
+  fi
+  
+  local db_dir="$REPO/../pgdata/$ticket_number"
+  local worktree_dir="$REPO"
+  local parent_dir=$(dirname "$REPO")
+  
+  echo "🧹 Worktree cleanup for $ticket_number"
+  echo "   Worktree: $worktree_dir"
+  echo "   Database: $db_dir"
+  echo ""
+  
+  # Confirm cleanup
+  read -p "This will stop containers, remove database, and remove worktree. Continue? [y/N]: " confirm
+  if [[ ! $confirm =~ ^[Yy]$ ]]; then
+    echo "Cleanup cancelled"
+    exit 0
+  fi
+  
+  # Step 1: Stop and remove containers
+  echo "🔻 Stopping Docker containers..."
+  if [[ -f "$REPO/docker-compose.yml" ]] || [[ -f "$REPO/docker-compose.override.yml" ]]; then
+    docker compose down 2>/dev/null || echo "No containers to stop"
+  fi
+  
+  # Step 2: Remove database directory
+  if [[ -d "$db_dir" ]]; then
+    echo "🗑️  Removing database directory: $db_dir"
+    
+    # Check if it's a btrfs subvolume
+    if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$db_dir" >/dev/null 2>&1; then
+      echo "Deleting btrfs subvolume..."
+      sudo btrfs subvolume delete "$db_dir"
+    else
+      sudo rm -rf "$db_dir"
+    fi
+    echo "Database directory removed"
+  else
+    echo "Database directory not found: $db_dir"
+  fi
+  
+  # Step 3: Remove worktree
+  echo "🗂️  Removing git worktree..."
+  cd "$parent_dir"
+  if git worktree remove "$worktree_dir" --force 2>/dev/null; then
+    echo "Git worktree removed successfully"
+  else
+    echo "⚠️  Failed to remove git worktree automatically"
+    echo "   Please manually run: git worktree remove $worktree_dir --force"
+    echo "   Or from the parent directory: git worktree prune"
+  fi
+  
+  echo "✅ Cleanup complete!"
+  echo "   Worktree '$ticket_number' has been removed"
+}
+
+sub_worktree() {
+  local worktree_subcommand=${1:-""}
+  
+  case $worktree_subcommand in
+    "bootstrap")
+      shift
+      _worktree_bootstrap "$@"
+      ;;
+    "cleanup")
+      shift
+      _worktree_cleanup "$@"
+      ;;
+    "" | "-h" | "--help")
+      _worktree_help
+      ;;
+    *)
+      echo "Error: '$worktree_subcommand' is not a known worktree subcommand." >&2
+      _worktree_help
+      exit 1
+      ;;
+  esac
 }
 
 subcommand=$1

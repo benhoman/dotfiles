@@ -1,6 +1,6 @@
 session: mainsite
 
-root: ~/src/github.com/bhoman-ca/consumeraffairs
+root: ~/src/github.com/bhoman-ca/mainsite/
 
 # before_start:
     # - docker-compose -f docker-compose.yml up -d
@@ -15,6 +15,8 @@ root: ~/src/github.com/bhoman-ca/consumeraffairs
 
 windows:
     - name: code
+    - name: ai
     - name: infra
     - name: docker
+    - name: lazygit
     #   root: src # relative path to root

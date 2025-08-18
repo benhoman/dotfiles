@@ -1,7 +1,8 @@
 # shellcheck source=/dev/null
 source ~/.local/share/omarchy/default/bash/rc
 
-export SSH_AUTH_SOCK=~/.1password/agent.sock
+# This seems annoying?
+# export SSH_AUTH_SOCK=~/.1password/agent.sock
 
 # Source relevant files
 for file in ~/.config/{aliases,functions}; do
@@ -11,5 +12,7 @@ for file in ~/.config/{aliases,functions}; do
   fi
 done
 unset file
+
+pathmunge "$HOME/.cargo/bin"
 
 eval "$(starship init bash)"

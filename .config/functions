@@ -43,3 +43,14 @@ function get_latest_github_release () {
 function twingate_auth () {
     xdg-open "$(twingate status | grep -Eo "https://[^ >]+" | head -n1)"
 }
+
+function pathmunge () {
+  if ! echo "$PATH" | /bin/grep -Eq "(^|:)$1($|:)" ; then
+      if [ "$2" = "after" ] ; then
+        PATH="$PATH:$1"
+      else
+        PATH="$1:$PATH"
+      fi
+  fi
+}
+

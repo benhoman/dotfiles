@@ -19,10 +19,10 @@
 
 2. **Git Workflow Automation**:
    - Creates a git worktree with a new branch based off upstream qa
-   - Command: `git fetch upstream qa && git worktree add -b <ticket-number>-<sanitized-title> worktrees/<ticket-number> upstream/qa && cd <ticket-number>`
+   - Command: `git fetch upstream qa && git worktree add -b <ticket-number>-<sanitized-title> <ticket-number> upstream/qa && cd <ticket-number>`
    - Ticket number is converted to uppercase
    - Title is converted to lowercase, spaces to dashes, non-alphanumeric removed
-   - Creates worktree as a subdirectory to keep everything contained
+   - Creates worktree as a subdirectory of the bare git repo to keep everything contained
    - Changes to the worktree directory for continued work
    - **Requires only one permission approval** for all git operations
 

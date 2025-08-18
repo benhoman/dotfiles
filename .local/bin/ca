@@ -27,7 +27,7 @@ _get_app_name() {
 }
 
 _get_task_name() {
-  docker compose -f "$DOCKER_COMPOSE_FILE" config --services | grep -E "celery-worker-|dramatiq-" | head -n1
+  docker compose -f "$DOCKER_COMPOSE_FILE" config --services | grep -E "celery-worker-|dramatiq-" | head -n1 || true
 }
 
 _app_running() {
@@ -76,7 +76,7 @@ _pytest_convert() {
 APP_NAME=$(_get_app_name)
 TASK_NAME=$(_get_task_name)
 
-if [[ $TASK_NAME == *"celery"* ]]; then
+if [[ "$TASK_NAME" == *"celery"* ]]; then
   TLOG_FILE="celery-celery.log"
 else
   TLOG_FILE="dramatiq.log"
@@ -108,6 +108,11 @@ sub_help() {
 
 sub_app() {
   echo "$APP_NAME"
+}
+
+sub_repo_name() {
+  echo "Repo Name"
+  echo "$REPO_NAME"
 }
 
 sub_bash() {
@@ -235,19 +240,19 @@ _worktree_check() {
   # Check if we're in a git worktree (not the main repository)
   local git_dir=$(git rev-parse --git-dir 2>/dev/null)
   local git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
-  
+
   if [[ -z "$git_dir" ]]; then
     echo "Error: Not in a git repository" >&2
     echo "Worktree commands must be run from within a git worktree" >&2
     exit 1
   fi
-  
+
   # Additional check: ensure we're not in a bare repository
   if git rev-parse --is-bare-repository >/dev/null 2>&1 && [[ "$(git rev-parse --is-bare-repository)" == "true" ]]; then
     echo "Error: Cannot run worktree commands in a bare repository" >&2
     exit 1
   fi
-  
+
   # In a worktree, git-dir and git-common-dir are different
   # In the main repo, they are the same
   if [[ "$git_dir" == "$git_common_dir" ]]; then
@@ -258,7 +263,7 @@ _worktree_check() {
     echo "Then cd into the worktree directory and run the command again." >&2
     exit 1
   fi
-  
+
   # If we get here, we're in a worktree - show some helpful info
   local worktree_dir=$(basename "$REPO")
   echo "ℹ️  Running in worktree: $worktree_dir"
@@ -267,7 +272,7 @@ _worktree_check() {
 _worktree_extract_ticket_number() {
   local current_dir=$(basename "$REPO")
   local ticket_number=""
-  
+
   # Try to extract ticket number (e.g., PDW-1234 from various formats)
   if [[ $current_dir =~ ([A-Z]+-[0-9]+) ]]; then
     ticket_number="${BASH_REMATCH[1]}"
@@ -280,11 +285,11 @@ _worktree_extract_ticket_number() {
 _worktree_bootstrap() {
   # Ensure we're in a worktree
   _worktree_check
-  
+
   # Extract ticket number from current directory name
   local ticket_number
   ticket_number=$(_worktree_extract_ticket_number)
-  
+
   if [[ -z "$ticket_number" ]]; then
     echo "Warning: Could not detect ticket number from directory name '$(basename "$REPO")'"
     read -p "Enter ticket number (e.g., PDW-1234): " ticket_number
@@ -295,18 +300,18 @@ _worktree_bootstrap() {
   else
     echo "Detected ticket number: $ticket_number"
   fi
-  
+
   # Handle pgdata operations only if the pgdata directory exists
   local pgdata_parent_dir="$REPO/../pgdata"
   local override_created=false
-  
+
   if [[ -d "$pgdata_parent_dir" ]]; then
     echo "Found pgdata directory, setting up database isolation..."
-    
+
     # Determine source and target database directories
     local source_db_dir="$pgdata_parent_dir/qa"
     local target_db_dir="$pgdata_parent_dir/$ticket_number"
-    
+
     # Check if source database directory exists
     if [[ ! -d "$source_db_dir" ]]; then
       echo "Warning: Source database directory '$source_db_dir' does not exist"
@@ -314,7 +319,7 @@ _worktree_bootstrap() {
       mkdir -p "$target_db_dir"
     else
       echo "Copying database from qa to $ticket_number..."
-      
+
       # Check if target already exists
       if [[ -d "$target_db_dir" ]]; then
         echo "Warning: Target database directory '$target_db_dir' already exists"
@@ -325,7 +330,7 @@ _worktree_bootstrap() {
           rm -rf "$target_db_dir"
         fi
       fi
-      
+
       # Check if source is a btrfs subvolume
       if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$source_db_dir" >/dev/null 2>&1; then
         echo "Source is a btrfs subvolume, creating read-write snapshot..."
@@ -340,10 +345,10 @@ _worktree_bootstrap() {
         fi
       fi
     fi
-    
+
     # Create docker-compose.override.yml for database volume override
     echo "Creating docker-compose.override.yml for database isolation..."
-    cat > "$REPO/docker-compose.override.yml" << EOF
+    cat >"$REPO/docker-compose.override.yml" <<EOF
 volumes:
   pgdata:
     driver: local
@@ -356,15 +361,15 @@ EOF
   else
     echo "No pgdata directory found, skipping database isolation setup"
   fi
-  
+
   # Fix image naming issues for services that reference built images
   echo "Checking for image naming issues in docker-compose.yml..."
   local worktree_name=$(basename "$REPO")
   local services_with_image_fixes=()
-  
+
   # Get the full docker-compose config once
   local compose_config=$(docker compose -f "$DOCKER_COMPOSE_FILE" config 2>&1 | grep -v "^WARN\[")
-  
+
   # Get all services that have build contexts (these create images)
   local buildable_services=()
   while read -r service; do
@@ -373,20 +378,20 @@ EOF
       echo "  Buildable service found: $service"
     fi
   done < <(docker compose -f "$DOCKER_COMPOSE_FILE" config --services 2>&1 | grep -v "^WARN\[")
-  
+
   # Check each service for image references that need fixing
   while read -r service; do
     local image_line=$(echo "$compose_config" | grep -A 20 "^  $service:" | grep "^    image:" | head -1)
-    
+
     if [[ -n "$image_line" ]]; then
       local image_name=$(echo "$image_line" | sed 's/^    image: //' | tr -d '"' | tr -d "'")
       echo "  Service $service has image: $image_name"
-      
+
       # Check if image follows pattern: {prefix}_{service_name}
       if [[ "$image_name" =~ ^([^_]+)_(.+)$ ]]; then
         local current_prefix="${BASH_REMATCH[1]}"
         local image_suffix="${BASH_REMATCH[2]}"
-        
+
         # Check if this image suffix matches any buildable service (with dash-to-underscore conversion)
         for buildable_service in "${buildable_services[@]}"; do
           local buildable_with_underscore="${buildable_service//-/_}"
@@ -400,14 +405,14 @@ EOF
       fi
     fi
   done < <(docker compose -f "$DOCKER_COMPOSE_FILE" config --services)
-  
+
   # Create or update docker-compose.override.yml with image fixes
   if [[ ${#services_with_image_fixes[@]} -gt 0 ]]; then
     echo "Creating/updating docker-compose.override.yml with image fixes..."
-    
+
     local override_file="$REPO/docker-compose.override.yml"
     local temp_override=""
-    
+
     # Check if override file exists and has services section not created by us
     local override_has_manual_changes=false
     if [[ -f "$override_file" && "$override_created" == false ]]; then
@@ -427,7 +432,7 @@ EOF
         override_has_manual_changes=true
       fi
     fi
-    
+
     # Start building the override content
     if [[ "$override_created" == true ]]; then
       # Read our previously created override file and append services section
@@ -442,28 +447,28 @@ EOF
     else
       temp_override="services:"
     fi
-    
+
     # Add each service that needs image fixing
     for service_fix in "${services_with_image_fixes[@]}"; do
       local service_name="${service_fix%%:*}"
       local new_image="${service_fix##*:}"
       temp_override="$temp_override"$'\n'"  $service_name:"$'\n'"    image: $new_image"
     done
-    
+
     # Write the complete override file
-    echo "$temp_override" > "$override_file"
+    echo "$temp_override" >"$override_file"
     echo "✅ Updated docker-compose.override.yml with ${#services_with_image_fixes[@]} image fixes"
     override_created=true
   else
     echo "❌ No image naming issues detected"
   fi
-  
+
   # Copy configuration files from main repository to worktree
   echo "Copying configuration files..."
   local git_common_dir=$(git rev-parse --git-common-dir)
   local main_repo_dir=$(dirname "$git_common_dir")
   local files_copied=()
-  
+
   # Check for copy list file first
   # File format: source_path[:destination_path] (one per line)
   # If destination_path is omitted, source_path is used as destination
@@ -480,21 +485,21 @@ EOF
     while IFS=':' read -r source_path dest_path; do
       # Skip empty lines and comments
       [[ -z "$source_path" || "$source_path" =~ ^[[:space:]]*# ]] && continue
-      
+
       # Trim whitespace
       source_path=$(echo "$source_path" | xargs)
       dest_path=$(echo "$dest_path" | xargs)
-      
+
       # If no destination path provided, use source path
       [[ -z "$dest_path" ]] && dest_path="$source_path"
-      
+
       local source_file="$main_repo_dir/$source_path"
       local target_file="$REPO/$dest_path"
-      
+
       # Create target directory if it doesn't exist
       local target_dir=$(dirname "$target_file")
       [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
-      
+
       if [[ -f "$source_file" ]]; then
         if [[ -f "$target_file" ]]; then
           echo "  $dest_path already exists in worktree, skipping"
@@ -506,15 +511,15 @@ EOF
       else
         echo "  ⚠️  $source_path not found in main repository"
       fi
-    done < "$copy_list_file"
+    done <"$copy_list_file"
   else
     # Fallback to hardcoded list
     local files_to_copy=(".env")
-    
+
     for file in "${files_to_copy[@]}"; do
       local source_file="$main_repo_dir/$file"
       local target_file="$REPO/$file"
-      
+
       if [[ -f "$source_file" ]]; then
         if [[ -f "$target_file" ]]; then
           echo "  $file already exists in worktree, skipping"
@@ -528,7 +533,7 @@ EOF
       fi
     done
   fi
-  
+
   echo "✅ Bootstrap complete!"
   if [[ "$override_created" == true ]]; then
     echo "   Database directory: ../pgdata/$ticket_number"
@@ -545,11 +550,11 @@ EOF
 _worktree_cleanup() {
   # Ensure we're in a worktree
   _worktree_check
-  
+
   # Extract ticket number from current directory name
   local ticket_number
   ticket_number=$(_worktree_extract_ticket_number)
-  
+
   if [[ -z "$ticket_number" ]]; then
     echo "Warning: Could not detect ticket number from directory name '$(basename "$REPO")'"
     read -p "Enter ticket number for database cleanup (e.g., PDW-1234): " ticket_number
@@ -560,37 +565,37 @@ _worktree_cleanup() {
   else
     echo "Detected ticket number: $ticket_number"
   fi
-  
+
   local pgdata_parent_dir="$REPO/../pgdata"
   local db_dir="$pgdata_parent_dir/$ticket_number"
   local worktree_dir="$REPO"
   local parent_dir=$(dirname "$REPO")
-  
+
   echo "🧹 Worktree cleanup for $ticket_number"
   echo "   Worktree: $worktree_dir"
   if [[ -d "$pgdata_parent_dir" ]]; then
     echo "   Database: $db_dir"
   fi
   echo ""
-  
+
   # Confirm cleanup
   read -p "This will stop containers, remove database, and remove worktree. Continue? [y/N]: " confirm
   if [[ ! $confirm =~ ^[Yy]$ ]]; then
     echo "Cleanup cancelled"
     exit 0
   fi
-  
+
   # Step 1: Stop and remove containers with volumes
   echo "🔻 Stopping Docker containers and removing volumes..."
   if [[ -f "$REPO/docker-compose.yml" ]] || [[ -f "$REPO/docker-compose.override.yml" ]]; then
     docker compose down --volumes 2>&1 | grep -v "^WARN\[" || echo "No containers to stop"
   fi
-  
+
   # Step 2: Remove database directory (only if pgdata parent exists)
   if [[ -d "$pgdata_parent_dir" ]]; then
     if [[ -d "$db_dir" ]]; then
       echo "🗑️  Removing database directory: $db_dir"
-      
+
       # Check if it's a btrfs subvolume
       if command -v btrfs >/dev/null 2>&1 && sudo btrfs subvolume show "$db_dir" >/dev/null 2>&1; then
         echo "Deleting btrfs subvolume..."
@@ -605,7 +610,7 @@ _worktree_cleanup() {
   else
     echo "No pgdata directory found, skipping database cleanup"
   fi
-  
+
   # Step 3: Remove worktree
   echo "🗂️  Removing git worktree..."
   cd "$parent_dir"
@@ -616,31 +621,31 @@ _worktree_cleanup() {
     echo "   Please manually run: git worktree remove $worktree_dir --force"
     echo "   Or from the parent directory: git worktree prune"
   fi
-  
+
   echo "✅ Cleanup complete!"
   echo "   Worktree '$ticket_number' has been removed"
 }
 
 sub_worktree() {
   local worktree_subcommand=${1:-""}
-  
+
   case $worktree_subcommand in
-    "bootstrap")
-      shift
-      _worktree_bootstrap "$@"
-      ;;
-    "cleanup")
-      shift
-      _worktree_cleanup "$@"
-      ;;
-    "" | "-h" | "--help")
-      _worktree_help
-      ;;
-    *)
-      echo "Error: '$worktree_subcommand' is not a known worktree subcommand." >&2
-      _worktree_help
-      exit 1
-      ;;
+  "bootstrap")
+    shift
+    _worktree_bootstrap "$@"
+    ;;
+  "cleanup")
+    shift
+    _worktree_cleanup "$@"
+    ;;
+  "" | "-h" | "--help")
+    _worktree_help
+    ;;
+  *)
+    echo "Error: '$worktree_subcommand' is not a known worktree subcommand." >&2
+    _worktree_help
+    exit 1
+    ;;
   esac
 }
 

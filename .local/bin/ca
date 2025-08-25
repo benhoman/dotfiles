@@ -588,7 +588,7 @@ _worktree_cleanup() {
   # Step 1: Stop and remove containers with volumes
   echo "🔻 Stopping Docker containers and removing volumes..."
   if [[ -f "$REPO/docker-compose.yml" ]] || [[ -f "$REPO/docker-compose.override.yml" ]]; then
-    docker compose down --volumes 2>&1 | grep -v "^WARN\[" || echo "No containers to stop"
+    docker compose down --volumes --rmi all 2>&1 | grep -v "^WARN\[" || echo "No containers to stop"
   fi
 
   # Step 2: Remove database directory (only if pgdata parent exists)

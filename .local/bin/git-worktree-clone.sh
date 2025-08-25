@@ -30,22 +30,22 @@ show_usage() {
 branch_name=""
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -b|--branch)
-      branch_name="$2"
-      shift 2
-      ;;
-    -h|--help)
-      show_usage
-      exit 0
-      ;;
-    -*)
-      echo "Error: Unknown option $1" >&2
-      show_usage
-      exit 1
-      ;;
-    *)
-      break
-      ;;
+  -b | --branch)
+    branch_name="$2"
+    shift 2
+    ;;
+  -h | --help)
+    show_usage
+    exit 0
+    ;;
+  -*)
+    echo "Error: Unknown option $1" >&2
+    show_usage
+    exit 1
+    ;;
+  *)
+    break
+    ;;
   esac
 done
 
@@ -83,11 +83,11 @@ git fetch origin
 # Create worktree for specified branch if provided
 if [[ -n "$branch_name" ]]; then
   echo "Creating worktree for branch: $branch_name"
-  
+
   # Check if branch exists on remote
   if git show-ref --verify --quiet "refs/remotes/origin/$branch_name"; then
     echo "Branch '$branch_name' exists on remote, creating worktree..."
-    git worktree add --track -b "$branch_name" "$branch_name" "origin/$branch_name"
+    git worktree add --track -B "$branch_name" "$branch_name" "origin/$branch_name"
     echo ""
     echo "Worktree setup complete!"
     echo "To work on '$branch_name': cd $name/$branch_name"

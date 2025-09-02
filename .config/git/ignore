@@ -79,7 +79,9 @@ pyrightconfig.json
 ########
 mise.toml
 
-**/.claude/settings.local.json
+# Serena #
+##########
+**/.serena
 
 # Git #
 #######
@@ -87,3 +89,4 @@ mise.toml
 
 **/.claude/settings.local.json
 
+**/CLAUDE.local.md

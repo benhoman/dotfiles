@@ -42,6 +42,10 @@ alias counttop='find . -maxdepth 1 -type f | wc -l'
 # SimpleHTTPServer
 alias servethis="python3 -m http.server"
 
+# Systemd
+alias uctl="systemctl --user"
+alias ujtl="journalctl --user"
+
 # Pacman
 # alias pacnew='rg pacnew /var/log/pacman.log'
 # alias pacnew='fd .pacnew /etc'
@@ -55,3 +59,6 @@ alias dcu='docker compose up'
 
 alias ld="lazydocker"
 alias lg="lazygit"
+
+# AI
+alias serena="/usr/bin/env uvx --from git+https://github.com/oraios/serena serena"

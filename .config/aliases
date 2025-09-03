@@ -62,3 +62,4 @@ alias lg="lazygit"
 
 # AI
 alias serena="/usr/bin/env uvx --from git+https://github.com/oraios/serena serena"
+aliase claude-yolo="claude --dangerously-skip-permissions"

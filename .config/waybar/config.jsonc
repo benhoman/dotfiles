@@ -10,8 +10,7 @@
   ],
   "modules-center": [
     "clock",
-    "custom/update",
-    "custom/claude-usage"
+    "custom/update"
   ],
   "modules-right": [
     "group/tray-expander",

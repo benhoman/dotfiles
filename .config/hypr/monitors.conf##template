@@ -19,6 +19,7 @@ env = GDK_SCALE,1
 monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
 monitor = desc:Samsung Electric Company U28E590 HTPK203929, preferred, auto-up, auto, transform, 2
 monitor = desc:AOC U3477 0x0000007C		, 3440x1440 , auto-up, auto, transform , 2
+monitor = desc:Dell Inc. DELL P2217H 4RDG983I1TSU, preferred, auto-left, auto
 # monitor = desc:Samsung Electric Company U28E590 HTPK203929, 3440x2160, auto, 1.666667
 # monitor = desc:Dell Inc. DELL S3220DGF HYXRF43	, 2560x1440 , 0x0, auto
 # monitor = desc:AOC U3477 0x0000007C, disable

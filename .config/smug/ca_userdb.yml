@@ -15,6 +15,7 @@ root: ~/src/github.com/bhoman-ca/userdb
 
 windows:
     - name: code
+    - name: ai
     - name: infra
     - name: docker
     #   root: src # relative path to root

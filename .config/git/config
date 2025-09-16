@@ -33,8 +33,29 @@
   excludesfile = ~/.config/git/ignore
   editor = /usr/bin/nvim
 
+[diff]
+  algorithm = histogram   # Clearer diffs on moved/edited lines
+	colorMoved = plain      # Highlight moved blocks in diffs
+	mnemonicPrefix = true   # More intuitive refs in diff output
+
+[column]
+	ui = auto 			    # Output in columns when possible
+
+[branch]
+	sort = -committerdate   # Sort branches by most recent commit first
+
+[tag]
+	sort = -version:refname  # Sort version numbers as you would expect
+
+[rerere]
+	enabled = true          # Record and reuse conflict resolutions
+	autoupdate = true       # Apply stored conflict resolutions automatically
+
 [pager]
-  branch = cat
+  branch = bat
+
+[pull]
+  rebase = true
 
 [init]
   defaultBranch = main

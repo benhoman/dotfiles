@@ -2,51 +2,89 @@
 set -euo pipefail
 
 PROGNAME=$(basename "$0")
-REPO=$(git rev-parse --show-toplevel)
-REPO_NAME=$(basename "$REPO")
-DOCKER_COMPOSE_FILE=$(find "$REPO" -type f -name docker-compose.yml -print -quit)
 
-if [[ ! -f "$DOCKER_COMPOSE_FILE" ]]; then
-  echo "Error: No docker-compose.yml found in $REPO" >&2
-  exit 1
-fi
-
-_get_app_name() {
-  if [[ $REPO_NAME == "brands" ]]; then
-    echo "web"
-  elif [[ $REPO_NAME == "reviews-api" ]]; then
-    echo "api"
-  else
-    local app_name=$(docker compose -f "$DOCKER_COMPOSE_FILE" config --services | grep "django" | head -n1)
-    if [[ -z "$app_name" ]]; then
-      echo "Error: No django service found" >&2
+# Cached functions for stateless operation
+_get_repo() {
+  if [[ -z "${_CACHED_REPO:-}" ]]; then
+    _CACHED_REPO=$(git rev-parse --show-toplevel 2>/dev/null)
+    if [[ -z "$_CACHED_REPO" ]]; then
+      echo "Error: Not in a git repository" >&2
       exit 1
     fi
-    echo "$app_name"
   fi
+  echo "$_CACHED_REPO"
+}
+
+_get_repo_name() {
+  if [[ -z "${_CACHED_REPO_NAME:-}" ]]; then
+    _CACHED_REPO_NAME=$(basename "$(_get_repo)")
+  fi
+  echo "$_CACHED_REPO_NAME"
+}
+
+_get_docker_compose_file() {
+  if [[ -z "${_CACHED_DOCKER_COMPOSE_FILE:-}" ]]; then
+    local repo=$(_get_repo)
+    _CACHED_DOCKER_COMPOSE_FILE=$(find "$repo" -type f -name docker-compose.yml -print -quit)
+    if [[ ! -f "$_CACHED_DOCKER_COMPOSE_FILE" ]]; then
+      echo "Error: No docker-compose.yml found in $repo" >&2
+      exit 1
+    fi
+  fi
+  echo "$_CACHED_DOCKER_COMPOSE_FILE"
+}
+
+# Helper function to run docker compose with the right file
+_docker_compose() {
+  local compose_file=$(_get_docker_compose_file)
+  docker compose -f "$compose_file" "$@"
+}
+
+_get_app_name() {
+  if [[ -z "${_CACHED_APP_NAME:-}" ]]; then
+    local repo_name=$(_get_repo_name)
+    if [[ $repo_name == "brands" ]]; then
+      _CACHED_APP_NAME="web"
+    elif [[ $repo_name == "reviews-api" ]]; then
+      _CACHED_APP_NAME="api"
+    else
+      _CACHED_APP_NAME=$(_docker_compose config --services | grep "django" | head -n1)
+      if [[ -z "$_CACHED_APP_NAME" ]]; then
+        echo "Error: No django service found" >&2
+        exit 1
+      fi
+    fi
+  fi
+  echo "$_CACHED_APP_NAME"
 }
 
 _get_task_name() {
-  docker compose -f "$DOCKER_COMPOSE_FILE" config --services | grep -E "celery-worker-|dramatiq-" | head -n1 || true
+  if [[ -z "${_CACHED_TASK_NAME:-}" ]]; then
+    _CACHED_TASK_NAME=$(_docker_compose config --services | grep -E "celery-worker-|dramatiq-" | head -n1 || true)
+  fi
+  echo "$_CACHED_TASK_NAME"
 }
 
 _app_running() {
-  docker compose ps --services --filter "status=running" | grep -q "$APP_NAME"
+  local app_name=$(_get_app_name)
+  _docker_compose ps --services --filter "status=running" | grep -q "$app_name"
 }
 
 _exec_run() {
+  local app_name=$(_get_app_name)
   if _app_running; then
-    docker compose exec -e PYTHONWARNINGS=ignore "$APP_NAME" "$@"
+    _docker_compose exec -e PYTHONWARNINGS=ignore "$app_name" "$@"
   else
-    docker compose run -e PYTHONWARNINGS=ignore --rm "$APP_NAME" "$@"
+    _docker_compose run -e PYTHONWARNINGS=ignore --rm "$app_name" "$@"
   fi
 }
 
 _exec_run_env() {
+  local app_name=$(_get_app_name)
   if _app_running; then
-    docker compose exec -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" "$APP_NAME" "$@"
+    _docker_compose exec -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" "$app_name" "$@"
   else
-    docker compose run -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" --rm "$APP_NAME" "$@"
+    _docker_compose run -e SSHKEY="$(cat ~/.ssh/id_rsa-ca)" -e KNOWN_HOSTS="$(ssh-keyscan github.com 2>/dev/null)" --rm "$app_name" "$@"
   fi
 }
 
@@ -73,14 +111,17 @@ _pytest_convert() {
   fi
 }
 
-APP_NAME=$(_get_app_name)
-TASK_NAME=$(_get_task_name)
-
-if [[ "$TASK_NAME" == *"celery"* ]]; then
-  TLOG_FILE="celery-celery.log"
-else
-  TLOG_FILE="dramatiq.log"
-fi
+_get_tlog_file() {
+  if [[ -z "${_CACHED_TLOG_FILE:-}" ]]; then
+    local task_name=$(_get_task_name)
+    if [[ "$task_name" == *"celery"* ]]; then
+      _CACHED_TLOG_FILE="celery-celery.log"
+    else
+      _CACHED_TLOG_FILE="dramatiq.log"
+    fi
+  fi
+  echo "$_CACHED_TLOG_FILE"
+}
 
 sub_help() {
   echo "Usage: $PROGNAME <subcommand> [options]\n"
@@ -102,17 +143,17 @@ sub_help() {
   echo "  pytest          Run Tests with pytest"
   echo "  has_pytest      Project has pytest installed"
   echo "  logs            Show container logs"
-  echo "  worktree            Worktree management (bootstrap, cleanup)"
+  echo "  worktree            Worktree management (init, bootstrap, cleanup)"
   echo ""
 }
 
 sub_app() {
-  echo "$APP_NAME"
+  echo "$(_get_app_name)"
 }
 
 sub_repo_name() {
   echo "Repo Name"
-  echo "$REPO_NAME"
+  echo "$(_get_repo_name)"
 }
 
 sub_bash() {
@@ -120,16 +161,17 @@ sub_bash() {
 }
 
 sub_build() {
-  if [[ $REPO_NAME == "silverback" ]]; then
+  local repo_name=$(_get_repo_name)
+  if [[ $repo_name == "silverback" ]]; then
     echo "###################################"
     echo "# Building silverback base images #"
     echo "###################################"
-    SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build "$@" be-build-base fe-build-base
+    SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 _docker_compose build "$@" be-build-base fe-build-base
   fi
   echo "###################"
   echo "# Building images #"
   echo "###################"
-  SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 docker compose build "$@"
+  SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 _docker_compose build "$@"
 }
 
 sub_makemigrations() {
@@ -153,7 +195,8 @@ sub_compile-requirements() {
 }
 
 sub_shell() {
-  if rg -q "django-extensions" "$REPO"/requirements*; then
+  local repo=$(_get_repo)
+  if rg -q "django-extensions" "$repo"/requirements*; then
     SHELL_COMMAND="shell_plus"
   else
     SHELL_COMMAND="shell"
@@ -174,7 +217,7 @@ sub_superuser() {
 }
 
 sub_reup() {
-  docker compose down && docker compose up
+  _docker_compose down && _docker_compose up
 }
 
 sub_run() {
@@ -186,7 +229,8 @@ sub_term() {
 }
 
 sub_test() {
-  if [[ $REPO_NAME =~ ^(silverback|match-api|dbus)$ ]]; then
+  local repo_name=$(_get_repo_name)
+  if [[ $repo_name =~ ^(silverback|match-api|dbus)$ ]]; then
     _exec_run pytest $@
   else
     sub_manage test --failfast $@
@@ -203,21 +247,24 @@ sub_ruff() {
 }
 
 sub_has_pytest() {
-  rg -q "pytest" "$REPO"/requirements*
+  local repo=$(_get_repo)
+  rg -q "pytest" "$repo"/requirements*
 }
 
 sub_logs() {
-  docker compose logs -f "$APP_NAME" "$@"
+  local app_name=$(_get_app_name)
+  _docker_compose logs -f "$app_name" "$@"
 }
 
 sub_magictest() {
-  if [[ $REPO_NAME =~ ^(silverback|match-api|reviews-api|reviews-moderation|dbus|consumeraffairs)$ ]]; then
+  local repo_name=$(_get_repo_name)
+  if [[ $repo_name =~ ^(silverback|match-api|reviews-api|reviews-moderation|dbus|consumeraffairs)$ ]]; then
     test_path=${@: -1}
     echo "running pytest"
     last_arg=$(_pytest_convert $test_path)
     echo $last_arg
     set -- "pytest" $last_arg
-    if [[ $REPO_NAME == "reviews-moderation" ]]; then
+    if [[ $repo_name == "reviews-moderation" ]]; then
       pytest $@
     else
       _exec_run $@
@@ -231,6 +278,7 @@ _worktree_help() {
   echo "Usage: $PROGNAME worktree <subcommand> [options]"
   echo ""
   echo "Subcommands:"
+  echo "  init         Create new worktree from upstream branch (default: qa)"
   echo "  bootstrap    Bootstrap worktree with custom database directory"
   echo "  cleanup      Clean up worktree (stop containers, remove database, remove worktree)"
   echo ""
@@ -265,12 +313,14 @@ _worktree_check() {
   fi
 
   # If we get here, we're in a worktree - show some helpful info
-  local worktree_dir=$(basename "$REPO")
+  local repo=$(_get_repo)
+  local worktree_dir=$(basename "$repo")
   echo "ℹ️  Running in worktree: $worktree_dir"
 }
 
 _worktree_extract_ticket_number() {
-  local current_dir=$(basename "$REPO")
+  local repo=$(_get_repo)
+  local current_dir=$(basename "$repo")
   local ticket_number=""
 
   # Try to extract ticket number (e.g., PDW-1234 from various formats)
@@ -291,7 +341,8 @@ _worktree_bootstrap() {
   ticket_number=$(_worktree_extract_ticket_number)
 
   if [[ -z "$ticket_number" ]]; then
-    echo "Warning: Could not detect ticket number from directory name '$(basename "$REPO")'"
+    local repo=$(_get_repo)
+    echo "Warning: Could not detect ticket number from directory name '$(basename "$repo")'"
     read -p "Enter ticket number (e.g., PDW-1234): " ticket_number
     if [[ -z "$ticket_number" ]]; then
       echo "Error: Ticket number is required for database directory naming"
@@ -302,7 +353,8 @@ _worktree_bootstrap() {
   fi
 
   # Handle pgdata operations only if the pgdata directory exists
-  local pgdata_parent_dir="$REPO/../pgdata"
+  local repo=$(_get_repo)
+  local pgdata_parent_dir="$repo/../pgdata"
   local override_created=false
 
   if [[ -d "$pgdata_parent_dir" ]]; then
@@ -348,7 +400,7 @@ _worktree_bootstrap() {
 
     # Create docker-compose.override.yml for database volume override
     echo "Creating docker-compose.override.yml for database isolation..."
-    cat >"$REPO/docker-compose.override.yml" <<EOF
+    cat >"$repo/docker-compose.override.yml" <<EOF
 volumes:
   pgdata:
     driver: local
@@ -364,11 +416,11 @@ EOF
 
   # Fix image naming issues for services that reference built images
   echo "Checking for image naming issues in docker-compose.yml..."
-  local worktree_name=$(basename "$REPO")
+  local worktree_name=$(basename "$repo")
   local services_with_image_fixes=()
 
   # Get the full docker-compose config once
-  local compose_config=$(docker compose -f "$DOCKER_COMPOSE_FILE" config 2>&1 | grep -v "^WARN\[")
+  local compose_config=$(_docker_compose config 2>&1 | grep -v "^WARN\[")
 
   # Get all services that have build contexts (these create images)
   local buildable_services=()
@@ -377,7 +429,7 @@ EOF
       buildable_services+=("$service")
       echo "  Buildable service found: $service"
     fi
-  done < <(docker compose -f "$DOCKER_COMPOSE_FILE" config --services 2>&1 | grep -v "^WARN\[")
+  done < <(_docker_compose config --services 2>&1 | grep -v "^WARN\[")
 
   # Check each service for image references that need fixing
   while read -r service; do
@@ -404,13 +456,13 @@ EOF
         done
       fi
     fi
-  done < <(docker compose -f "$DOCKER_COMPOSE_FILE" config --services)
+  done < <(_docker_compose config --services)
 
   # Create or update docker-compose.override.yml with image fixes
   if [[ ${#services_with_image_fixes[@]} -gt 0 ]]; then
     echo "Creating/updating docker-compose.override.yml with image fixes..."
 
-    local override_file="$REPO/docker-compose.override.yml"
+    local override_file="$repo/docker-compose.override.yml"
     local temp_override=""
 
     # Check if override file exists and has services section not created by us
@@ -494,7 +546,7 @@ EOF
       [[ -z "$dest_path" ]] && dest_path="$source_path"
 
       local source_file="$main_repo_dir/$source_path"
-      local target_file="$REPO/$dest_path"
+      local target_file="$repo/$dest_path"
 
       # Create target directory if it doesn't exist
       local target_dir=$(dirname "$target_file")
@@ -518,7 +570,7 @@ EOF
 
     for file in "${files_to_copy[@]}"; do
       local source_file="$main_repo_dir/$file"
-      local target_file="$REPO/$file"
+      local target_file="$repo/$file"
 
       if [[ -f "$source_file" ]]; then
         if [[ -f "$target_file" ]]; then
@@ -556,7 +608,8 @@ _worktree_cleanup() {
   ticket_number=$(_worktree_extract_ticket_number)
 
   if [[ -z "$ticket_number" ]]; then
-    echo "Warning: Could not detect ticket number from directory name '$(basename "$REPO")'"
+    local repo=$(_get_repo)
+    echo "Warning: Could not detect ticket number from directory name '$(basename "$repo")'"
     read -p "Enter ticket number for database cleanup (e.g., PDW-1234): " ticket_number
     if [[ -z "$ticket_number" ]]; then
       echo "Error: Ticket number is required for database cleanup"
@@ -566,10 +619,11 @@ _worktree_cleanup() {
     echo "Detected ticket number: $ticket_number"
   fi
 
-  local pgdata_parent_dir="$REPO/../pgdata"
+  local repo=$(_get_repo)
+  local pgdata_parent_dir="$repo/../pgdata"
   local db_dir="$pgdata_parent_dir/$ticket_number"
-  local worktree_dir="$REPO"
-  local parent_dir=$(dirname "$REPO")
+  local worktree_dir="$repo"
+  local parent_dir=$(dirname "$repo")
 
   echo "🧹 Worktree cleanup for $ticket_number"
   echo "   Worktree: $worktree_dir"
@@ -587,8 +641,8 @@ _worktree_cleanup() {
 
   # Step 1: Stop and remove containers with volumes
   echo "🔻 Stopping Docker containers and removing volumes..."
-  if [[ -f "$REPO/docker-compose.yml" ]] || [[ -f "$REPO/docker-compose.override.yml" ]]; then
-    docker compose down --volumes --rmi all 2>&1 | grep -v "^WARN\[" || echo "No containers to stop"
+  if [[ -f "$repo/docker-compose.yml" ]] || [[ -f "$repo/docker-compose.override.yml" ]]; then
+    _docker_compose down --volumes --rmi all 2>&1 | grep -v "^WARN\[" || echo "No containers to stop"
   fi
 
   # Step 2: Remove database directory (only if pgdata parent exists)
@@ -626,10 +680,104 @@ _worktree_cleanup() {
   echo "   Worktree '$ticket_number' has been removed"
 }
 
+_worktree_init() {
+  # Parse command line arguments
+  local base_branch="qa"
+  local worktree_name=""
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -b|--branch)
+        base_branch="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Usage: ca worktree init [-b|--branch BRANCH_NAME] [WORKTREE_NAME]"
+        echo ""
+        echo "Options:"
+        echo "  -b, --branch BRANCH_NAME  Base branch to create worktree from (default: qa)"
+        echo "  -h, --help               Show this help message"
+        echo ""
+        echo "Arguments:"
+        echo "  WORKTREE_NAME            Name for the new worktree directory"
+        return 0
+        ;;
+      -*)
+        echo "Error: Unknown option $1" >&2
+        return 1
+        ;;
+      *)
+        worktree_name="$1"
+        break
+        ;;
+    esac
+  done
+
+  # Check that we're in the main repository (not already in a worktree)
+  local git_dir=$(git rev-parse --git-dir 2>/dev/null)
+  local git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+
+  if [[ -z "$git_dir" ]]; then
+    echo "Error: Not in a git repository" >&2
+    return 1
+  fi
+
+  # In a worktree, git-dir and git-common-dir are different
+  if [[ "$git_dir" != "$git_common_dir" ]]; then
+    echo "Error: Already in a worktree. Run 'ca worktree init' from the main repository" >&2
+    return 1
+  fi
+
+  # Prompt for worktree name if not provided
+  if [[ -z "$worktree_name" ]]; then
+    read -p "Enter worktree name (e.g., PDW-1234-feature-description): " worktree_name
+    if [[ -z "$worktree_name" ]]; then
+      echo "Error: Worktree name is required"
+      return 1
+    fi
+  fi
+
+  local worktree_path="../$worktree_name"
+
+  echo "Creating worktree '$worktree_name' from '$base_branch'..."
+
+  # Fetch latest changes
+  echo "Fetching latest changes..."
+  git fetch origin
+
+  # Check if base branch exists on remote
+  if ! git show-ref --verify --quiet "refs/remotes/origin/$base_branch"; then
+    echo "Error: Branch '$base_branch' not found on remote"
+    echo "Available remote branches:"
+    git branch -r --format='%(refname:short)' | sed 's/origin\///' | head -10
+    return 1
+  fi
+
+  # Create worktree
+  echo "Creating worktree at: $worktree_path"
+  if ! git worktree add --track -B "$worktree_name" "$worktree_path" "origin/$base_branch"; then
+    echo "Error: Failed to create worktree"
+    return 1
+  fi
+
+  echo "✅ Worktree created successfully!"
+  echo ""
+  echo "Next steps:"
+  echo "  1. cd $worktree_path"
+  echo "  2. ca worktree bootstrap  # Set up database isolation and config files"
+  echo "  3. docker compose up     # Start the isolated environment"
+  echo ""
+  echo "To clean up later: cd $worktree_path && ca worktree cleanup"
+}
+
 sub_worktree() {
   local worktree_subcommand=${1:-""}
 
   case $worktree_subcommand in
+  "init")
+    shift
+    _worktree_init "$@"
+    ;;
   "bootstrap")
     shift
     _worktree_bootstrap "$@"

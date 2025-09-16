@@ -34,6 +34,9 @@ alias cpv='rsync -ah --info=progress2'
 # Git
 alias gpuq="git pull upstream qa"
 alias cg='cd `git rev-parse --show-toplevel`' # cd root of git repo
+alias g="git"
+alias gd="git diff"
+alias gs="git status"
 
 # Count files in directory
 alias count='find . -type f | wc -l'
@@ -63,3 +66,7 @@ alias lg="lazygit"
 # AI
 alias serena="/usr/bin/env uvx --from git+https://github.com/oraios/serena serena"
 alias claude-yolo="claude --dangerously-skip-permissions"
+alias tclaude="mkdir -p /tmp/claude && cd /tmp/claude && claude"
+
+# UVX
+alias kasa="/usr/bin/env uvx --from python-kasa kasa"

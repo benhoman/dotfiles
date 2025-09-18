@@ -37,6 +37,11 @@ alias cg='cd `git rev-parse --show-toplevel`' # cd root of git repo
 alias g="git"
 alias gd="git diff"
 alias gs="git status"
+alias gw="git worktree"
+alias gwa="gw add"
+alias gwl="gw list"
+alias gwp="gw prune"
+alias gwr="gw remove"
 
 # Count files in directory
 alias count='find . -type f | wc -l'

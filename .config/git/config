@@ -8,6 +8,9 @@
 [includeIf "gitdir:~/src/github.com/consumeraffairs/"]
   path = ~/.config/git/ca
 
+[includeIf "gitdir:~/Work/consumeraffairs/"]
+  path = ~/.config/git/ca
+
 [includeIf "gitdir:~/src/github.com/bhoman-nboe/"]
   path = ~/.config/git/nboe
 

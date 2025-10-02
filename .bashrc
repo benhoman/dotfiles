@@ -16,3 +16,5 @@ unset file
 pathmunge "$HOME/.cargo/bin"
 
 eval "$(starship init bash)"
+
+. "$HOME/.local/share/../bin/env"

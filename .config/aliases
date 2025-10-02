@@ -72,6 +72,7 @@ alias lg="lazygit"
 alias serena="/usr/bin/env uvx --from git+https://github.com/oraios/serena serena"
 alias claude-yolo="claude --dangerously-skip-permissions"
 alias tclaude="mkdir -p /tmp/claude && cd /tmp/claude && claude"
+alias ccstatusline="npx ccstatusline@latest"
 
 # UVX
 alias kasa="/usr/bin/env uvx --from python-kasa kasa"

@@ -1,6 +1,6 @@
 session: mainsite
 
-root: ~/src/github.com/bhoman-ca/mainsite/
+root: ~/Work/consumeraffairs/mainsite/
 
 # before_start:
     # - docker-compose -f docker-compose.yml up -d

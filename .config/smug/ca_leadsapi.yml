@@ -1,6 +1,6 @@
 session: leadsapi
 
-root: ~/src/github.com/bhoman-ca/leads-api
+root: ~/Work/consumeraffairs/leads-api
 
 # before_start:
     # - docker-compose -f docker-compose.yml up -d

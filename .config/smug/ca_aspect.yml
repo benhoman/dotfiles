@@ -1,6 +1,7 @@
 session: aspect
 
-root: ~/src/github.com/bhoman-ca/aspect
+# root: ~/src/github.com/bhoman-ca/aspect
+root: ~/Work/consumeraffairs/aspect
 
 # before_start:
     # - docker-compose -f docker-compose.yml up -d

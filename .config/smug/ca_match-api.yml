@@ -1,6 +1,6 @@
 session: match-api
 
-root: ~/src/github.com/bhoman-ca/match-api
+root: ~/Work/consumeraffairs/match-api
 
 windows:
   - name: code

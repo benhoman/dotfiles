@@ -24,11 +24,17 @@ _get_repo_name() {
 
 _get_docker_compose_file() {
   if [[ -z "${_CACHED_DOCKER_COMPOSE_FILE:-}" ]]; then
-    local repo=$(_get_repo)
-    _CACHED_DOCKER_COMPOSE_FILE=$(find "$repo" -type f -name docker-compose.yml -print -quit)
-    if [[ ! -f "$_CACHED_DOCKER_COMPOSE_FILE" ]]; then
-      echo "Error: No docker-compose.yml found in $repo" >&2
-      exit 1
+    # Check current directory first
+    if [[ -f "docker-compose.yml" ]]; then
+      _CACHED_DOCKER_COMPOSE_FILE="docker-compose.yml"
+    else
+      # Fall back to repo root
+      local repo=$(_get_repo)
+      _CACHED_DOCKER_COMPOSE_FILE=$(find "$repo" -type f -name docker-compose.yml -print -quit)
+      if [[ ! -f "$_CACHED_DOCKER_COMPOSE_FILE" ]]; then
+        echo "Error: No docker-compose.yml found in $repo" >&2
+        exit 1
+      fi
     fi
   fi
   echo "$_CACHED_DOCKER_COMPOSE_FILE"
@@ -37,7 +43,14 @@ _get_docker_compose_file() {
 # Helper function to run docker compose with the right file
 _docker_compose() {
   local compose_file=$(_get_docker_compose_file)
-  docker compose -f "$compose_file" "$@"
+  local compose_dir=$(dirname "$compose_file")
+  local override_file="$compose_dir/docker-compose.override.yml"
+
+  if [[ -f "$override_file" ]]; then
+    docker compose -f "$compose_file" -f "$override_file" "$@"
+  else
+    docker compose -f "$compose_file" "$@"
+  fi
 }
 
 _get_app_name() {
@@ -129,6 +142,8 @@ sub_help() {
   echo "  app             Print determined app name"
   echo "  bash            Open bash shell"
   echo "  build           Build docker image"
+  echo "  up              Start docker compose services"
+  echo "  down            Stop docker compose services"
   echo "  manage          Run manage.py"
   echo "  migrate         Run migrations"
   echo "  makemigrations  Run makemigrations"
@@ -172,6 +187,14 @@ sub_build() {
   echo "# Building images #"
   echo "###################"
   SSHKEY=$(cat ~/.ssh/id_rsa-ca) NPM_TOKEN=$(cat ~/.config/consumeraffairs/npmrc | grep ":_authToken=" | cut -d "=" -f2) KNOWN_HOSTS=$(ssh-keyscan github.com 2>/dev/null) DOCKER_BUILDKIT=1 _docker_compose build "$@"
+}
+
+sub_up() {
+  _docker_compose up "$@"
+}
+
+sub_down() {
+  _docker_compose down "$@"
 }
 
 sub_makemigrations() {

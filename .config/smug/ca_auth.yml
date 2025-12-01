@@ -1,6 +1,6 @@
 session: auth
 
-root: ~/src/github.com/bhoman-ca/auth
+root: ~/Work/consumeraffairs/auth
 
 # before_start:
     # - docker-compose -f docker-compose.yml up -d
@@ -14,6 +14,7 @@ root: ~/src/github.com/bhoman-ca/auth
 #     NPM_TOKEN: $(grep "_authToken" ~/.npmrc | cut -d"=" -f2)
 
 windows:
+    - name: ai
     - name: code
     - name: infra
     - name: docker

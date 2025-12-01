@@ -16,6 +16,11 @@ for file in ~/.config/{aliases,functions}; do
 done
 unset file
 
+# ConsumerAffairs development environment
+if [ -f ~/.config/consumeraffairs/env ]; then
+    source "$HOME/.config/consumeraffairs/env"
+fi
+
 pathmunge "$HOME/.cargo/bin"
 
 eval "$(starship init bash)"

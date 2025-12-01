@@ -105,3 +105,15 @@ The `ca` script provides these shortcuts:
   - `git add *.js` for file patterns when appropriate
 - This ensures intentional staging and prevents accidental commits of unwanted files
 
+
+## Language specific - Python
+
+### Typing
+- Always add typing where possible when writing new code.
+- Use Python 3.10+ typing style when possible.
+
+### Codestyle
+- Make sure when writing the code its formatted correctly the way ruff would format it.
+- Also follow all ruff linting guidelines. Use the pyproject.toml file to for project specific details.
+- NEVER import a module within a function/class/module unless it's absolutely necessary to avoid a circular import error. ALWAYS prefer importing at the top of the file and sort it correctly according to the linter.
+- Do the imports after implementing the code so the linter doesn't remove the import

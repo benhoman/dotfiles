@@ -1,19 +1,10 @@
 {
-  "mcp": {
-    "autoApprove": {
-      "tools": [
-        "mcp__mcp-atlassian__getAccessibleAtlassianResources",
-        "mcp__mcp-atlassian__getJiraIssue",
-        "mcp__mcp-atlassian__searchJiraIssuesUsingJql",
-        "mcp__mcp-atlassian__getConfluenceSpaces",
-        "mcp__mcp-atlassian__getConfluencePage"
-      ]
-    }
-  },
-  "model": "sonnet[1m]",
-  "statusLine": {
-    "type": "command",
-    "command": "bash ~/.claude/statusline-command.sh"
+  "permissions": {
+    "allow": [
+      "Bash(ca ruff:*)",
+      "Bash(ca pytest:*)",
+      "Bash(ruff:*)"
+    ]
   },
   "hooks": {
     "Notification": [
@@ -23,17 +14,6 @@
           {
             "type": "command",
             "command": "notify-send 'Claude Code' 'Awaiting your input'"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/bash_command_validator.py"
           }
         ]
       }
@@ -48,6 +28,54 @@
           }
         ]
       }
-    ]
+    ],
+    "PreCompact": [],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/bash_command_validator.py"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [],
+    "Stop": [],
+    "SubagentStop": [],
+    "UserPromptSubmit": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y ccstatusline@latest",
+    "padding": 0
+  },
+  "alwaysThinkingEnabled": false,
+  "mcp": {
+    "autoApprove": {
+      "tools": [
+        "mcp__atlassian__getAccessibleAtlassianResources",
+        "mcp__atlassian__getJiraIssue",
+        "mcp__atlassian__searchJiraIssuesUsingJql",
+        "mcp__atlassian__getConfluenceSpaces",
+        "mcp__atlassian__getConfluencePage",
+        "mcp__serena__activate_project",
+        "mcp__serena__check_onboarding_performed",
+        "mcp__serena__find_file",
+        "mcp__serena__find_referencing_symbols",
+        "mcp__serena__find_symbol",
+        "mcp__serena__get_symbols_overview",
+        "mcp__serena__list_dir",
+        "mcp__serena__list_memories",
+        "mcp__serena__prepare_for_new_conversation",
+        "mcp__serena__read_file",
+        "mcp__serena__read_memory",
+        "mcp__serena__search_for_pattern",
+        "mcp__serena__think_about_collected_information",
+        "mcp__serena__think_about_task_adherence",
+        "mcp__serena__think_about_whether_you_are_done"
+      ]
+    }
   }
 }

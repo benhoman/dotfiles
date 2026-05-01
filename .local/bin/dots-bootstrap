@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-DOTFILES_REPO="https://github.com/bhoman/dotfiles.git"
+DOTFILES_REPO="git@github.com:benhoman/dotfiles.git"
 DOTFILES_DIR="$HOME/.dotfiles"
 
 info()    { printf '\033[0;34m  → %s\033[0m\n' "$*"; }

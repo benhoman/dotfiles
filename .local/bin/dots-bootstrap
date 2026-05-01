@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# Bootstrap a new machine from dotfiles.
+# Safe to re-run — all steps check before acting.
+
+set -euo pipefail
+
+DOTFILES_REPO="https://github.com/bhoman/dotfiles.git"
+DOTFILES_DIR="$HOME/.dotfiles"
+
+info()    { printf '\033[0;34m  → %s\033[0m\n' "$*"; }
+success() { printf '\033[0;32m  ✓ %s\033[0m\n' "$*"; }
+warn()    { printf '\033[0;33m  ! %s\033[0m\n' "$*"; }
+section() { printf '\n\033[1;37m▶ %s\033[0m\n' "$*"; }
+
+# ---------------------------------------------------------------------------
+# 1. Xcode Command Line Tools (macOS only)
+# ---------------------------------------------------------------------------
+if [[ "$(uname)" == "Darwin" ]]; then
+  section "Xcode Command Line Tools"
+  if ! xcode-select -p &>/dev/null; then
+    info "Installing Xcode CLT..."
+    xcode-select --install
+    # Wait for installation to complete
+    until xcode-select -p &>/dev/null; do sleep 5; done
+    success "Xcode CLT installed"
+  else
+    success "Xcode CLT already installed"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Homebrew
+# ---------------------------------------------------------------------------
+section "Homebrew"
+if ! command -v brew &>/dev/null; then
+  info "Installing Homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+  # Add brew to PATH for the rest of this script
+  if [[ "$(uname)" == "Darwin" ]]; then
+    if [[ "$(uname -m)" == "arm64" ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    else
+      eval "$(/usr/local/bin/brew shellenv)"
+    fi
+  else
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  fi
+  success "Homebrew installed"
+else
+  success "Homebrew already installed"
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Dotfiles bare repo
+# ---------------------------------------------------------------------------
+section "Dotfiles"
+dots() { /usr/bin/git --git-dir="$DOTFILES_DIR" --work-tree="$HOME" "$@"; }
+
+if [[ ! -d "$DOTFILES_DIR" ]]; then
+  info "Cloning dotfiles..."
+  git clone --bare "$DOTFILES_REPO" "$DOTFILES_DIR"
+  dots config status.showUntrackedFiles no
+
+  # Check out — move conflicting files to a backup dir first
+  if ! dots checkout 2>/dev/null; then
+    warn "Backing up conflicting files to ~/.dotfiles-backup/"
+    mkdir -p "$HOME/.dotfiles-backup"
+    dots checkout 2>&1 \
+      | grep '^\s' \
+      | awk '{print $1}' \
+      | xargs -I{} sh -c 'mkdir -p "$HOME/.dotfiles-backup/$(dirname {})" && mv "$HOME/{}" "$HOME/.dotfiles-backup/{}"'
+    dots checkout
+  fi
+  success "Dotfiles checked out"
+else
+  info "Dotfiles repo already exists, pulling latest..."
+  dots pull
+  success "Dotfiles up to date"
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Homebrew bundle
+# ---------------------------------------------------------------------------
+section "Homebrew packages"
+BREWFILE="$HOME/.config/brew/Brewfile"
+if [[ -f "$BREWFILE" ]]; then
+  info "Running brew bundle..."
+  HOMEBREW_BUNDLE_FILE="$BREWFILE" brew bundle --no-lock
+  success "Homebrew packages installed"
+else
+  warn "Brewfile not found at $BREWFILE — skipping"
+fi
+
+# ---------------------------------------------------------------------------
+# 5. mise runtimes
+# ---------------------------------------------------------------------------
+section "mise runtimes"
+if command -v mise &>/dev/null; then
+  info "Installing mise runtimes..."
+  mise install
+  success "mise runtimes installed"
+else
+  warn "mise not found — skipping runtime install (install brew packages first)"
+fi
+
+# ---------------------------------------------------------------------------
+# 6. zinit (zsh plugin manager)
+# ---------------------------------------------------------------------------
+section "zinit"
+ZINIT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
+if [[ ! -d "$ZINIT_DIR" ]]; then
+  info "Installing zinit..."
+  mkdir -p "$(dirname "$ZINIT_DIR")"
+  git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_DIR"
+  success "zinit installed"
+else
+  success "zinit already installed"
+fi
+
+# ---------------------------------------------------------------------------
+# 7. TPM (tmux plugin manager)
+# ---------------------------------------------------------------------------
+section "TPM (tmux plugins)"
+TPM_DIR="$HOME/.local/share/tmux/plugins/tpm"
+if [[ ! -d "$TPM_DIR" ]]; then
+  info "Installing TPM..."
+  mkdir -p "$(dirname "$TPM_DIR")"
+  git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
+  success "TPM installed"
+else
+  success "TPM already installed"
+fi
+
+# ---------------------------------------------------------------------------
+# 8. Done — manual checklist
+# ---------------------------------------------------------------------------
+section "Done"
+cat <<'EOF'
+
+Bootstrap complete. A few things still need manual setup:
+
+  SSH
+  □ Generate or copy SSH keys to ~/.ssh/
+  □ Add public key to GitHub
+  □ On Linux: systemctl --user enable --now ssh-agent
+
+  Git
+  □ Review ~/.config/git/config — update includeIf paths if repo layout differs
+
+  macOS
+  □ Log into App Store and install any MAS apps
+  □ Configure AeroSpace / OmniWM
+  □ Start sketchybar: brew services start sketchybar
+  □ Allow Ghostty, AeroSpace in System Settings → Privacy & Security
+
+  Tools
+  □ gh auth login
+  □ Open tmux and press <prefix> + I to install plugins via TPM
+  □ Open nvim — LazyVim will auto-install plugins on first launch
+
+  Work (CA)
+  □ Clone CA repos under ~/src/github.com/bhoman-ca/
+  □ Set up ~/.config/zsh/local.zsh for any machine-specific overrides
+  □ Copy ~/.local/state/consumeraffairs/ from old machine if needed
+
+EOF

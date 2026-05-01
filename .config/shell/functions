@@ -73,35 +73,12 @@ repo() {
   _open_url "$url"
 }
 
-# Fetch latest GitHub release tag for a repo
-get_latest_github_release() {
-  curl --silent \
-    -H "Accept: application/vnd.github.v3+json" \
-    "https://api.github.com/repos/$1/releases/latest" \
-    | grep '"tag_name":' | cut -d'"' -f4
-}
-
-# Abbreviated pwd (for prompts etc)
-fpwd() {
-  pwd | sed -e "s|^$HOME|~|" -e 's-\([^/.]\)[^/]*/-\1/-g'
-}
-
 # Pretty-print JSON
 json() {
   if [ -t 0 ]; then
-    python3 -mjson.tool <<< "$*" | pygmentize -l javascript
+    echo "$*" | jq .
   else
-    python3 -mjson.tool | pygmentize -l javascript
-  fi
-}
-
-# Check if a URI is up
-isup() {
-  local uri=$1
-  if curl -s --head --request GET "$uri" | grep "200 OK" >/dev/null; then
-    echo "$uri is up"
-  else
-    echo "$uri is down"
+    jq .
   fi
 }
 
@@ -110,13 +87,14 @@ in_tmux() {
   [ -n "$TMUX" ]
 }
 
-# Create a throwaway Python virtualenv in a temp dir
+# Throwaway Python env via uv in a temp dir
 python_throwaway() {
   local dir
-  dir=$(mktemp -d -t virtualenv-XXXXXXX)
+  dir=$(mktemp -d -t throwaway-XXXXXXX)
   cd "$dir"
-  python3 -m venv .
-  . bin/activate
+  uv init --quiet
+  uv venv --quiet
+  . .venv/bin/activate
 }
 
 # Git colored diff (overrides diff when git is available)

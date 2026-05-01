@@ -7,17 +7,12 @@ alias rm="rm -i"
 alias dots='/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
 alias dotfiles='dots'
 
-# eza (exa successor)
+# eza
 if command -v eza >/dev/null 2>&1; then
   alias ls="eza --color=auto"
   alias ll="eza --color=auto --icons -lah"
   alias lg="eza --color=auto --icons --grid -lah"
   alias la="eza --color=auto --icons -a"
-elif command -v exa >/dev/null 2>&1; then
-  alias ls="exa --color=auto"
-  alias ll="exa --color=auto --icons -lah"
-  alias lg="exa --color=auto --icons --grid -lah"
-  alias la="exa --color=auto --icons -a"
 fi
 
 alias lgrep="ls -lha | grep"
@@ -27,11 +22,6 @@ if command -v batcat >/dev/null 2>&1; then
   alias cat="batcat"
 elif command -v bat >/dev/null 2>&1; then
   alias cat="bat"
-fi
-
-# colordiff
-if command -v colordiff >/dev/null 2>&1; then
-  alias diff="colordiff"
 fi
 
 # tmux
@@ -86,3 +76,6 @@ alias gpo='git push origin'
 alias gcob='git branch | fzf | xargs git checkout'
 alias gdnew='for next in $(git ls-files --others --exclude-standard); do git --no-pager diff --no-index /dev/null $next; done'
 alias gdall='git --no-pager diff; gdnew'
+
+# Kubernetes
+alias k="kubectl"

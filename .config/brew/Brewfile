@@ -1,5 +1,6 @@
 # Core tools — all platforms
 brew "bat"
+brew "eza"
 brew "btop"
 brew "fd"
 brew "fzf"

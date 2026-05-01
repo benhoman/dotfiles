@@ -1,0 +1,61 @@
+# Secrets — never commit
+.config/consumeraffairs/
+.config/git/ca
+.config/ca-worktrees/
+.local/state/
+.ssh/
+.gnupg/
+.npmrc
+.npmrc.bak
+.mcp-auth/
+
+# History and cache — never commit
+.zsh_history
+.bash_history
+.python_history
+.mysql_history
+.rediscli_history
+.viminfo
+.lesshst
+.zcompdump*
+.zsh_sessions/
+.DS_Store
+
+# Tool-managed state — regenerated on install
+.claude/
+.docker/
+.colima/
+.lima/
+.cargo/
+.rustup/
+.npm/
+.nvm/
+.pyenv/
+.oh-my-zsh/
+.local/share/
+.local/lib/
+.cache/
+.lmstudio/
+.cursor/
+.gk/
+.serena/
+.copilot/
+.fzf/
+.gem/
+.ipynb_checkpoints/
+.ipython/
+.jupyter/
+.node-gyp/
+.venv/
+.cmuxterm/
+
+# Bare repo itself
+.dotfiles/
+.cfg/
+
+# Misc junk
+*.diff
+*.bak
+.keep
+.popsql.json
+.v8flags*

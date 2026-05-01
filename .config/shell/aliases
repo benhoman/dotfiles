@@ -1,0 +1,88 @@
+# General
+alias sudo="sudo "
+alias e="nvim"
+alias rm="rm -i"
+
+# dotfiles
+alias dots='/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
+alias dotfiles='dots'
+
+# eza (exa successor)
+if command -v eza >/dev/null 2>&1; then
+  alias ls="eza --color=auto"
+  alias ll="eza --color=auto --icons -lah"
+  alias lg="eza --color=auto --icons --grid -lah"
+  alias la="eza --color=auto --icons -a"
+elif command -v exa >/dev/null 2>&1; then
+  alias ls="exa --color=auto"
+  alias ll="exa --color=auto --icons -lah"
+  alias lg="exa --color=auto --icons --grid -lah"
+  alias la="exa --color=auto --icons -a"
+fi
+
+alias lgrep="ls -lha | grep"
+
+# bat
+if command -v batcat >/dev/null 2>&1; then
+  alias cat="batcat"
+elif command -v bat >/dev/null 2>&1; then
+  alias cat="bat"
+fi
+
+# colordiff
+if command -v colordiff >/dev/null 2>&1; then
+  alias diff="colordiff"
+fi
+
+# tmux
+alias ta="tmux attach"
+
+# cd
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+
+# Docker
+alias dc="docker compose"
+alias dcu="dc up"
+alias dcd="dc down"
+alias dcp="dc pull"
+
+# Django
+alias django_secret_key='python3 -c "import secrets; print(secrets.token_urlsafe())"'
+
+# Copy with progress bar
+alias cpv='rsync -ah --info=progress2'
+
+# cd to root of git project
+alias cg='cd $(git rev-parse --show-toplevel)'
+
+# Count files
+alias count='find . -type f | wc -l'
+alias counttop='find . -maxdepth 1 -type f | wc -l'
+
+# Python virtualenvs
+alias ve='python3 -m venv ./venv'
+alias va='source ./venv/bin/activate'
+
+# Simple HTTP server
+alias servethis="python3 -m http.server"
+
+# Python
+alias pyclean='find . -type f -name "*.py[co]" -delete -or -type d -name "__pycache__" -delete'
+
+# Git
+alias g='git'
+alias ga='git add'
+alias gc='git checkout'
+alias gm='git commit'
+alias gs='git status'
+alias gpu='git pull upstream'
+alias gpuq='git pull upstream qa'
+alias gpud='git pull upstream dev'
+alias gpum='git pull upstream main'
+alias gpo='git push origin'
+alias gcob='git branch | fzf | xargs git checkout'
+alias gdnew='for next in $(git ls-files --others --exclude-standard); do git --no-pager diff --no-index /dev/null $next; done'
+alias gdall='git --no-pager diff; gdnew'

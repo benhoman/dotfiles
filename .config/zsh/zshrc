@@ -1,0 +1,95 @@
+# Powerlevel10k instant prompt — must stay at top
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# Environment / PATH
+typeset -U path
+export LANG=en_US.UTF-8
+export EDITOR=nvim
+export GOPATH=$HOME/go
+export FZF_DEFAULT_COMMAND="rg --files --hidden --follow --glob '!.git'"
+export HOMEBREW_BUNDLE_FILE="$HOME/.config/brew/Brewfile"
+
+path=(
+  $HOME/.local/bin
+  $GOPATH/bin
+  /opt/homebrew/bin
+  $HOME/.lmstudio/bin
+  $path
+)
+
+# Zinit bootstrap
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+if [[ ! -d $ZINIT_HOME ]]; then
+  mkdir -p "$(dirname $ZINIT_HOME)"
+  git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+fi
+source "${ZINIT_HOME}/zinit.zsh"
+
+# Prompt — toggle with CA_PROMPT=starship to use starship instead of p10k
+CA_PROMPT="${CA_PROMPT:-p10k}"
+if [[ $CA_PROMPT == starship ]]; then
+  eval "$(starship init zsh)"
+else
+  zinit ice depth=1
+  zinit light romkatv/powerlevel10k
+  [[ -f ~/.config/zsh/p10k.zsh ]] && source ~/.config/zsh/p10k.zsh
+fi
+
+# Eager plugins
+zinit light zsh-users/zsh-autosuggestions
+zinit light zsh-users/zsh-syntax-highlighting
+
+# Deferred plugins
+zinit ice wait'0' lucid; zinit light Aloxaf/fzf-tab
+zinit ice wait'0' lucid; zinit snippet OMZP::git
+zinit ice wait'0' lucid; zinit snippet OMZP::docker/completions/_docker
+
+# Completions — full compinit once per day, cached otherwise
+autoload -Uz compinit
+_zcompdump=~/.config/zsh/.zcompdump-$HOST-$ZSH_VERSION
+if [[ -n $_zcompdump(#qNmh-24) ]]; then
+  compinit -C -d "$_zcompdump"
+else
+  compinit -d "$_zcompdump"
+fi
+unset _zcompdump
+zinit cdreplay -q
+
+# Tool integrations
+eval "$(zoxide init zsh)"
+eval "$(mise activate zsh)"
+command -v thefuck >/dev/null && eval "$(thefuck --alias)"
+command -v ngrok >/dev/null && eval "$(ngrok completion)"
+
+# Cargo
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
+
+# Nix (Linux/Silverblue)
+[[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]] && source "$HOME/.nix-profile/etc/profile.d/nix.sh"
+
+# User files
+for _f in \
+  ~/.config/shell/aliases \
+  ~/.config/shell/functions \
+  ~/.config/zsh/local.zsh \
+  ~/.config/zsh/ca_config.zsh
+do
+  [[ -f $_f ]] && source $_f
+done
+unset _f
+
+# SSH completion
+zstyle ':completion:*:(scp|rsync):*' tag-order ' hosts:-ipaddr:ip\ address hosts:-host:host files'
+zstyle ':completion:*:(ssh|scp|rsync):*:hosts-host' ignored-patterns '*(.|:)*' loopback ip6-loopback localhost ip6-localhost broadcasthost
+zstyle ':completion:*:(ssh|scp|rsync):*:hosts-ipaddr' ignored-patterns '^(<->.<->.<->.<->|(|::)([[:xdigit:].]##:(#c,2))##(|%*))' '127.0.0.<->' '255.255.255.255' '::1' 'fe80::*'
+
+# Worktree CLI
+export CA_WORKTREES=~/src/github.com/bhoman-ca/worktrees
+path=($CA_WORKTREES/bin $path)
+[[ -f $CA_WORKTREES/wt.sh ]] && source $CA_WORKTREES/wt.sh
+
+# vi mode
+bindkey -v
+bindkey "^R" history-incremental-search-backward

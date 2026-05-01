@@ -1,0 +1,125 @@
+# Cross-platform open
+_open_url() {
+  if command -v open >/dev/null 2>&1; then
+    open "$1"
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$1" >/dev/null 2>&1
+  else
+    echo "No URL opener found (tried open, xdg-open)" >&2
+    return 1
+  fi
+}
+
+# pbcopy/pbpaste — macOS has these natively; define on Linux only
+if [ "$(uname)" != "Darwin" ]; then
+  if command -v xclip >/dev/null 2>&1; then
+    eval 'pbcopy()  { xclip -selection clipboard; }'
+    eval 'pbpaste() { xclip -selection clipboard -o; }'
+  elif command -v xsel >/dev/null 2>&1; then
+    eval 'pbcopy()  { xsel --clipboard --input; }'
+    eval 'pbpaste() { xsel --clipboard --output; }'
+  fi
+fi
+
+# Create dir and cd into it
+mkcd() { mkdir -p "$1" && cd "$1"; }
+
+# cd to a throwaway temp dir
+tmp() { cd "$(mktemp -d)"; }
+
+# Ripgrep + fzf
+rgfzf() {
+  if [ ! "$#" -gt 0 ]; then
+    echo "Usage: rgfzf <query>" >&2
+    return 1
+  fi
+  rg --files-with-matches --no-messages "$1" \
+    | fzf --prompt "$1 > " \
+          --reverse --multi \
+          --preview "rg --ignore-case --pretty --context 10 '$1' {}"
+}
+
+# Open current repo in browser
+repo() {
+  local base_url
+  base_url=$(git config --get remote.origin.url)
+  base_url=${base_url%.git}
+  base_url=${base_url//git@github.com:/https://github.com/}
+  base_url=${base_url//git://github.com/https://github.com/}
+  base_url=${base_url//git@bitbucket.org:/https://bitbucket.org/}
+  base_url=${base_url//git@gitlab.com:/https://gitlab.com/}
+
+  if ! git branch >/dev/null 2>&1; then
+    echo "Not a git repo!" >&2
+    return 1
+  fi
+
+  local full_path git_base_path relative_path branch tree url
+  full_path=$(pwd)
+  git_base_path=$(cd "./$(git rev-parse --show-cdup)" && pwd)
+  relative_path=${full_path#"$git_base_path"}
+  [ -n "$1" ] && relative_path="$relative_path/$1"
+
+  branch=$(git name-rev --name-only --no-undefined --always HEAD 2>/dev/null)
+  branch=${branch#refs/heads/}
+  branch=${branch#remotes/origin/}
+
+  case "$base_url" in
+    *bitbucket*) tree="src" ;;
+    *)           tree="tree" ;;
+  esac
+
+  url="$base_url/$tree/$branch$relative_path"
+  _open_url "$url"
+}
+
+# Fetch latest GitHub release tag for a repo
+get_latest_github_release() {
+  curl --silent \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/$1/releases/latest" \
+    | grep '"tag_name":' | cut -d'"' -f4
+}
+
+# Abbreviated pwd (for prompts etc)
+fpwd() {
+  pwd | sed -e "s|^$HOME|~|" -e 's-\([^/.]\)[^/]*/-\1/-g'
+}
+
+# Pretty-print JSON
+json() {
+  if [ -t 0 ]; then
+    python3 -mjson.tool <<< "$*" | pygmentize -l javascript
+  else
+    python3 -mjson.tool | pygmentize -l javascript
+  fi
+}
+
+# Check if a URI is up
+isup() {
+  local uri=$1
+  if curl -s --head --request GET "$uri" | grep "200 OK" >/dev/null; then
+    echo "$uri is up"
+  else
+    echo "$uri is down"
+  fi
+}
+
+# Check if inside tmux
+in_tmux() {
+  [ -n "$TMUX" ]
+}
+
+# Create a throwaway Python virtualenv in a temp dir
+python_throwaway() {
+  local dir
+  dir=$(mktemp -d -t virtualenv-XXXXXXX)
+  cd "$dir"
+  python3 -m venv .
+  . bin/activate
+}
+
+# Git colored diff (overrides diff when git is available)
+if command -v git >/dev/null 2>&1; then
+  diff() { git diff --no-index --color-words "$@"; }
+fi

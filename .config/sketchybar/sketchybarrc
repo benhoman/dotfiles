@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# ── Latchdark color palette (from your Hyprland/Waybar theme) ──
+export BAR_BG=0xf0151515        # bar background (near-opaque dark)
+export ITEM_BG=0xff1e1e1e       # item background
+export ACCENT=0xffaca3a3        # warm gray accent
+export FG=0xffedecec            # foreground text
+export FG_DIM=0xff7a7a7a        # dimmed text
+export ACTIVE_BORDER=0xffb3b4b4 # active workspace
+export INACTIVE=0xff2b2c2b      # inactive elements
+export TRANSPARENT=0x00000000
+export GREEN=0xff9ed072
+export RED=0xfffc5d7c
+export YELLOW=0xffe7c664
+
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+FONT="CaskaydiaMono Nerd Font"   # same as your Waybar
+
+# ── Bar configuration (matching Waybar: top, 26px height) ──
+bar=(
+    height=26
+    blur_radius=30
+    position=top
+    sticky=on
+    padding_left=8
+    padding_right=8
+    color=$BAR_BG
+    shadow=off
+    topmost=window
+)
+sketchybar --bar "${bar[@]}"
+
+# ── Defaults ──
+default=(
+    padding_left=4
+    padding_right=4
+    icon.font="$FONT:Bold:13.0"
+    icon.color=$FG
+    icon.padding_left=4
+    icon.padding_right=2
+    label.font="$FONT:Regular:12.0"
+    label.color=$FG
+    label.padding_left=2
+    label.padding_right=4
+    background.color=$TRANSPARENT
+    background.corner_radius=4
+    background.height=20
+)
+sketchybar --default "${default[@]}"
+
+# ── LEFT: Workspaces (OmniWM integration via omniwmctl) ──
+sketchybar --add event omniwm_workspace_change
+
+for sid in 1 2 3 4 5 6 7 8 9; do
+    sketchybar --add item space.$sid left \
+        --subscribe space.$sid omniwm_workspace_change \
+        --set space.$sid \
+            label="$sid" \
+            label.font="$FONT:Bold:12.0" \
+            label.color=$FG_DIM \
+            label.padding_left=6 \
+            label.padding_right=6 \
+            background.color=$INACTIVE \
+            background.corner_radius=4 \
+            background.height=18 \
+            background.drawing=off \
+            padding_left=1 \
+            padding_right=1 \
+            icon.drawing=off \
+            click_script="omniwmctl command switch-workspace $sid" \
+            script="$PLUGIN_DIR/omniwm_workspace.sh $sid"
+done
+
+# Separator after workspaces
+sketchybar --add item space_separator left \
+    --set space_separator \
+        icon="" \
+        icon.color=$FG_DIM \
+        icon.font="$FONT:Regular:10.0" \
+        icon.padding_left=6 \
+        icon.padding_right=2 \
+        label.drawing=off \
+        background.drawing=off
+
+# ── LEFT: Active window title ──
+sketchybar --add item front_app left \
+    --set front_app \
+        icon.drawing=off \
+        label.font="$FONT:Regular:12.0" \
+        label.color=$FG_DIM \
+        script="$PLUGIN_DIR/front_app.sh" \
+    --subscribe front_app front_app_switched
+
+# ── RIGHT: Clock + System info ──
+# Clock on far right (notch blocks center on MacBooks)
+
+sketchybar --add item clock right \
+    --set clock \
+        update_freq=10 \
+        icon="󱑍" \
+        icon.color=$ACCENT \
+        icon.font="$FONT:Regular:14.0" \
+        label.font="$FONT:Regular:12.0" \
+        label.color=$FG \
+        padding_right=2 \
+        script="$PLUGIN_DIR/clock.sh"
+
+# Notch spacer — avoids items rendering under the MacBook notch
+sketchybar --add item notch_spacer center \
+    --set notch_spacer \
+        width=200 \
+        icon.drawing=off \
+        label.drawing=off \
+        background.drawing=off
+
+# Battery
+sketchybar --add item battery right \
+    --set battery \
+        update_freq=60 \
+        icon.font="$FONT:Regular:14.0" \
+        label.font="$FONT:Regular:11.0" \
+        label.color=$FG_DIM \
+        script="$PLUGIN_DIR/battery.sh" \
+    --subscribe battery system_woke power_source_change
+
+# WiFi
+sketchybar --add item wifi right \
+    --set wifi \
+        icon="󰖩" \
+        icon.font="$FONT:Regular:14.0" \
+        icon.color=$FG_DIM \
+        label.drawing=off \
+        script="$PLUGIN_DIR/wifi.sh" \
+    --subscribe wifi wifi_change system_woke
+
+# Volume
+sketchybar --add item volume right \
+    --set volume \
+        icon.font="$FONT:Regular:14.0" \
+        icon.color=$FG_DIM \
+        label.drawing=off \
+        script="$PLUGIN_DIR/volume.sh" \
+    --subscribe volume volume_change
+
+# CPU
+sketchybar --add item cpu right \
+    --set cpu \
+        update_freq=5 \
+        icon="󰍛" \
+        icon.font="$FONT:Regular:14.0" \
+        icon.color=$FG_DIM \
+        label.font="$FONT:Regular:11.0" \
+        label.color=$FG_DIM \
+        script="$PLUGIN_DIR/cpu.sh"
+
+# ── Bracket: group right items with subtle background ──
+sketchybar --add bracket system cpu volume wifi battery \
+    --set system \
+        background.color=$ITEM_BG \
+        background.corner_radius=4 \
+        background.height=20
+
+# ── Start OmniWM workspace watcher (background) ──
+# Subscribes to workspace changes and triggers sketchybar updates
+"$PLUGIN_DIR/omniwm_watcher.sh" &
+
+# ── Force initial update ──
+sketchybar --update

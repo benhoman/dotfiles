@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+title="${1:-Claude Code}"
+message="${2:-Awaiting your input}"
+
+if [ -n "$TMUX" ]; then
+  session=$(tmux display-message -p '#S')
+  message="TMUX: $session"$'\n'"$message"
+fi
+
+if command -v osascript >/dev/null 2>&1; then
+  osascript -e "display notification \"$message\" with title \"$title\""
+elif command -v notify-send >/dev/null 2>&1; then
+  notify-send "$title" "$message"
+else
+  echo "$title: $message" >&2
+fi

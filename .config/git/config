@@ -29,7 +29,16 @@
   editor = nvim
 
 [pager]
-  branch = cat
+  branch = bat
+
+[diff]
+  algorithm = histogram
+
+[branch]
+  sort = -committerdate
+
+[rerere]
+  enabled = true
 
 [init]
   defaultBranch = main

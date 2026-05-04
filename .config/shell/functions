@@ -87,6 +87,15 @@ in_tmux() {
   [ -n "$TMUX" ]
 }
 
+# Use switch-client when inside tmux, attach-session otherwise
+_ta_switch() {
+  if in_tmux; then
+    tmux switch-client -t "$1"
+  else
+    tmux attach-session -t "$1"
+  fi
+}
+
 # Attach to a tmux session by name, or pick one with fzf.
 # If the session doesn't exist, load a matching tmuxp profile (ca_<name> or
 # exact match) or fall back to creating a plain new session.
@@ -112,7 +121,7 @@ ta() {
     name=$(printf '%s' "$chosen" | sed 's/^[^:]*:  *//')
     # If it was a session line, just attach
     if printf '%s' "$chosen" | grep -q '^session:'; then
-      tmux attach-session -t "$name"
+      _ta_switch "$name"
       return
     fi
     # Otherwise fall through with $name set to the profile basename
@@ -122,7 +131,7 @@ ta() {
 
   # Already have a live session?
   if tmux has-session -t "$name" 2>/dev/null; then
-    tmux attach-session -t "$name"
+    _ta_switch "$name"
     return
   fi
 

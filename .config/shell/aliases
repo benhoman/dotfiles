@@ -1,6 +1,7 @@
 # General
 alias sudo="sudo "
 alias e="nvim"
+alias vim="nvim"
 alias rm="rm -i"
 
 # dotfiles
@@ -73,8 +74,16 @@ alias gpud='git pull upstream dev'
 alias gpum='git pull upstream main'
 alias gpo='git push origin'
 alias gcob='git branch | fzf | xargs git checkout'
+alias gd='git diff'
 alias gdnew='for next in $(git ls-files --others --exclude-standard); do git --no-pager diff --no-index /dev/null $next; done'
 alias gdall='git --no-pager diff; gdnew'
+alias gr='git rebase'
+alias grc='git rebase --continue'
+alias gw='git worktree'
+alias gwa='git worktree add'
+alias gwl='git worktree list'
+alias gwp='git worktree prune'
+alias gwr='git worktree remove'
 
 # Kubernetes
 alias k="kubectl"

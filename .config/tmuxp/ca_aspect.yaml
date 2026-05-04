@@ -1,0 +1,16 @@
+session_name: aspect
+start_directory: ~/src/github.com/bhoman-ca/aspect
+
+windows:
+  - window_name: ai
+    panes:
+      - pane
+  - window_name: code
+    panes:
+      - pane
+  - window_name: infra
+    panes:
+      - pane
+  - window_name: docker
+    panes:
+      - pane

@@ -87,6 +87,62 @@ in_tmux() {
   [ -n "$TMUX" ]
 }
 
+# Attach to a tmux session by name, or pick one with fzf.
+# If the session doesn't exist, load a matching tmuxp profile (ca_<name> or
+# exact match) or fall back to creating a plain new session.
+# With no args, fzf over active sessions + tmuxp profiles.
+ta() {
+  local name tmuxp_dir ca_profile exact_profile profile
+
+  tmuxp_dir="${TMUXP_CONFIGDIR:-$HOME/.config/tmuxp}"
+
+  if [ -z "$1" ]; then
+    local sessions profiles choices chosen
+    sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+    profiles=$(find "$tmuxp_dir" -maxdepth 1 -name '*.yaml' -o -name '*.yml' 2>/dev/null \
+      | xargs -I{} basename {} \
+      | sed 's/\.[^.]*$//')
+    choices=$(
+      { [ -n "$sessions" ] && printf '%s\n' "$sessions" | sed 's/^/session: /'; \
+        printf '%s\n' "$profiles" | sed 's/^/tmuxp:  /'; } \
+      | sort -u
+    )
+    chosen=$(printf '%s\n' "$choices" | fzf --prompt 'ta> ')
+    [ -z "$chosen" ] && return 0
+    name=$(printf '%s' "$chosen" | sed 's/^[^:]*:  *//')
+    # If it was a session line, just attach
+    if printf '%s' "$chosen" | grep -q '^session:'; then
+      tmux attach-session -t "$name"
+      return
+    fi
+    # Otherwise fall through with $name set to the profile basename
+  else
+    name="$1"
+  fi
+
+  # Already have a live session?
+  if tmux has-session -t "$name" 2>/dev/null; then
+    tmux attach-session -t "$name"
+    return
+  fi
+
+  # Look for a tmuxp profile: prefer ca_<name>, then exact match
+  ca_profile="$tmuxp_dir/ca_${name}.yaml"
+  exact_profile="$tmuxp_dir/${name}.yaml"
+
+  if [ -f "$ca_profile" ]; then
+    profile="$ca_profile"
+  elif [ -f "$exact_profile" ]; then
+    profile="$exact_profile"
+  fi
+
+  if [ -n "$profile" ]; then
+    tmuxp load "$profile"
+  else
+    tmux new-session -s "$name"
+  fi
+}
+
 # Throwaway Python env via uv in a temp dir
 python_throwaway() {
   local dir

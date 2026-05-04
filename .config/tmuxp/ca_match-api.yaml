@@ -1,0 +1,19 @@
+session_name: match-api
+start_directory: ~/src/github.com/bhoman-ca/match-api
+
+windows:
+  - window_name: ai
+    panes:
+      - pane
+  - window_name: code
+    panes:
+      - pane
+  - window_name: infra
+    panes:
+      - pane
+  - window_name: docker
+    panes:
+      - pane
+  - window_name: git
+    panes:
+      - lazygit

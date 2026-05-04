@@ -1,0 +1,5 @@
+session_name: obsidian
+start_directory: ~/Documents/vaults/main
+windows:
+  - window_name: cli
+  - window_name: ai

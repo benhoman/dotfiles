@@ -53,4 +53,5 @@ if OS.mac?
   cask "lm-studio"
   cask "zoom"
   cask "caffeine"
+  cask "raycast"
 end

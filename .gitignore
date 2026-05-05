@@ -23,6 +23,8 @@
 
 # Tool-managed state — regenerated on install
 .claude/
+!.claude/skills/
+!.claude/skills/**
 .docker/
 .colima/
 .lima/

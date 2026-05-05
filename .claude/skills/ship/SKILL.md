@@ -127,7 +127,20 @@ Build the commit message:
 3. **Extract ticket prefix** from branch: `echo "$BRANCH" | grep -oE '^[A-Z]+-[0-9]+'`
 4. **Final message**: `<TICKET> <Description>` — exactly the format `enforce-ticket-prefix.sh` expects.
 
-5. Commit using a HEREDOC for safety:
+5. **Confirm with user** via `AskUserQuestion` before committing:
+   ```
+   AskUserQuestion(
+     question: "Commit message:\n\n  <full proposed message>\n\nProceed?",
+     options: [
+       { label: "Commit as-is",  description: "Use this message" },
+       { label: "Edit subject",  description: "Type a replacement subject" },
+       { label: "Cancel",        description: "Abort without committing" }
+     ]
+   )
+   ```
+   If "Edit subject", prompt for the new subject and rebuild the message, then re-confirm. Loop until the user approves or cancels.
+
+6. Commit using a HEREDOC for safety:
    ```bash
    git commit -m "$(cat <<'EOF'
    PDW-XXXX Description here
@@ -139,7 +152,7 @@ If the hook blocks the commit, surface the hook's stderr verbatim and abort. Don
 
 ### Mode: Generic
 
-Same as CA project but without the ticket prefix. Use the user's message argument or generate a one-line description from the diff. Plain `git commit -m "..."` via HEREDOC.
+Same as CA project but without the ticket prefix. Use the user's message argument or generate a one-line description from the diff. Confirm with `AskUserQuestion` (same options as CA project mode) before committing. Plain `git commit -m "..."` via HEREDOC.
 
 ---
 

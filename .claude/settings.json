@@ -5,7 +5,10 @@
     "CLAUDE_CODE_NEW_INIT": "1"
   },
   "permissions": {
-    "defaultMode": "auto"
+    "defaultMode": "auto",
+    "additionalDirectories": [
+      "~/Documents/vaults/main"
+    ]
   },
   "hooks": {
     "PreToolUse": [

@@ -8,9 +8,3 @@ windows:
   - window_name: code
     panes:
       - pane
-  - window_name: infra
-    panes:
-      - pane
-  - window_name: docker
-    panes:
-      - pane

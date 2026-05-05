@@ -60,7 +60,10 @@ zinit cdreplay -q
 # Tool integrations
 eval "$(zoxide init zsh)"
 eval "$(mise activate zsh)"
-command -v thefuck >/dev/null && eval "$(thefuck --alias)"
+# lazy-load thefuck — avoids 560ms Python startup on every shell
+if command -v thefuck >/dev/null; then
+  fuck() { eval "$(thefuck --alias)"; unfunction fuck; fuck "$@"; }
+fi
 command -v ngrok >/dev/null && eval "$(ngrok completion)"
 
 # Cargo

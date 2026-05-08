@@ -89,7 +89,7 @@ zstyle ':completion:*:(ssh|scp|rsync):*:hosts-host' ignored-patterns '*(.|:)*' l
 zstyle ':completion:*:(ssh|scp|rsync):*:hosts-ipaddr' ignored-patterns '^(<->.<->.<->.<->|(|::)([[:xdigit:].]##:(#c,2))##(|%*))' '127.0.0.<->' '255.255.255.255' '::1' 'fe80::*'
 
 # Worktree CLI
-export CA_WORKTREES=~/src/github.com/bhoman-ca/worktrees
+export CA_WORKTREES=~/src/github.com/bhoman-ca/worktrees/dev
 path=($CA_WORKTREES/bin $path)
 [[ -f $CA_WORKTREES/wt.sh ]] && source $CA_WORKTREES/wt.sh
 

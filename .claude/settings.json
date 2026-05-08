@@ -8,6 +8,19 @@
     "defaultMode": "auto",
     "additionalDirectories": [
       "~/Documents/vaults/main"
+    ],
+    "deny": [
+      "Read(//Users/bhoman/.local/state/consumeraffairs/mise_env.toml)",
+      "Edit(//Users/bhoman/.local/state/consumeraffairs/mise_env.toml)",
+      "Write(//Users/bhoman/.local/state/consumeraffairs/mise_env.toml)",
+      "Bash(cat *mise_env.toml*)",
+      "Bash(less *mise_env.toml*)",
+      "Bash(more *mise_env.toml*)",
+      "Bash(head *mise_env.toml*)",
+      "Bash(tail *mise_env.toml*)",
+      "Bash(bat *mise_env.toml*)",
+      "Bash(grep * *mise_env.toml*)",
+      "Bash(rg * *mise_env.toml*)"
     ]
   },
   "model": "opus[1m]",
@@ -52,6 +65,7 @@
     }
   },
   "alwaysThinkingEnabled": false,
+  "theme": "dark",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true
 }

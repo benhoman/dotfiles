@@ -23,6 +23,8 @@ brew "watch"
 brew "wget"
 brew "zoxide"
 
+cask "codex"
+
 # macOS only
 if OS.mac?
   tap "felixkratz/formulae"
@@ -44,15 +46,14 @@ if OS.mac?
 
   # Dev tools
   cask "bruno"
+  cask "claude"
   cask "ngrok"
-  cask "docker"
+  cask "docker-desktop"
 
   # Apps
   cask "obsidian"
-  cask "slack"
   cask "spotify"
   cask "lm-studio"
-  cask "zoom"
   cask "caffeine"
   cask "raycast"
 end

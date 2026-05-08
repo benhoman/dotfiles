@@ -1,0 +1,147 @@
+# User configuration for ca-worktrees
+
+[ai]
+# Enable AI assistance for ambiguous decisions during setup
+enabled = true
+
+# Which backend to use: "claude" or "opencode"
+backend = "claude"
+
+# Default model for all backends (optional - lets tool use its default if not set)
+# model = "haiku"
+
+# Timeout in seconds for LLM requests
+# timeout = 30
+
+# Per-backend model overrides (optional)
+# [ai.claude]
+# model = "sonnet"  # Use sonnet for claude backend
+
+# [ai.opencode]
+# model = "anthropic/claude-3-5-haiku"  # OpenCode uses provider/model format
+
+[ai.mcp.atlassian]
+# MCP server name for Atlassian tools (JIRA, Confluence, etc.)
+# Default is "atlassian" - override if your MCP server is named differently
+# server_name = "jira"
+#
+# Note for OpenCode users:
+# OpenCode MCP tools are always available based on your ~/.config/opencode/opencode.json
+# configuration. If Atlassian tools aren't working, ensure your MCP server is
+# configured there:
+#
+#   {
+#     "mcp": {
+#       "atlassian": {
+#         "type": "remote",
+#         "url": "https://mcp.atlassian.com/v1/sse",
+#         "oauth": { "scope": "tools:read" }
+#       }
+#     }
+#   }
+#
+# Then authenticate with: opencode mcp auth atlassian
+
+[env]
+# Regular environment variables
+# EXAMPLE_VAR = "value"
+
+[env_files]
+# Environment variables loaded from file contents
+SSHKEY = "~/.ssh/id_rsa-ca"
+KNOWN_HOSTS = "~/.ssh/known_hosts"
+
+# NPM authentication token (extracted from npmrc format: registry/:_authToken=TOKEN)
+# If the file exists and contains an authToken, NPM_TOKEN env var is set automatically
+npmrc = "~/.local/state/consumeraffairs/npmrc"
+
+[database]
+# Default database mode for worktrees
+# "shared" = use main repo's database (default, simpler setup)
+# "isolated" = each worktree gets its own database
+# "image" = use pre-built database image with data baked in (like isolated but faster startup)
+# "bare-metal" = use host-installed PostgreSQL (fastest, requires [bare_metal] config)
+default_mode = "isolated"
+
+[bare_metal]
+enabled = true
+host = "localhost"
+port = 5432
+superuser = "bhoman"
+superuser_password = ""  # Using peer/trust auth
+[git]
+# Default base branch for creating new worktrees
+# Can be overridden per-project in config.toml or via --base flag
+# default_base_branch = "qa"
+
+# Git remote names (if you renamed your remotes from the defaults)
+# upstream_remote = "upstream"
+# origin_remote = "origin"
+
+[projects]
+# Directories containing git repos to scan for worktrees
+# Required for `wt session` command to discover worktrees across projects
+base_dirs = ["~/src/github.com/bhoman-ca"]
+
+# Cache TTL in seconds (default: 900 = 15 minutes)
+# cache_ttl = 900
+
+# Include main project repos in `wt session` selection (default: true)
+# Set to false to only show worktrees
+# session_include_projects = false
+
+[tmuxp]
+# Whether to auto-start tmuxp session on worktree create
+auto_start = true
+
+# YAML template for tmuxp sessions (uses ${VAR} env var substitution)
+# Available variables:
+#   ${WT_NAME}    - worktree folder name (e.g., match-api-pdw-12345)
+#   ${WT_PATH}    - full path to worktree
+#   ${WT_BRANCH}  - git branch name
+#   ${WT_TICKET}  - extracted ticket ID (e.g., pdw-12345)
+#   ${WT_PROJECT} - project name (e.g., match-api)
+#
+template = '''
+session_name: ${WT_NAME}
+start_directory: ${WT_PATH}
+windows:
+  - window_name: ai
+    panes:
+      - claude --permission-mode auto
+  - window_name: code
+  - window_name: server
+'''
+
+[rootfs]
+# Replace these rootfs files with a noop script in containers
+# Paths are relative to rootfs/ (e.g., "wait-for" → /wait-for in container)
+# noop_files = ["wait-for"]
+
+[worktree]
+# Additional files/directories to copy from main repo to worktrees during init
+# Paths are relative to project root. Parent directories are created as needed.
+# Directories are copied recursively.
+# Examples:
+#   "mise.toml"           - copies mise.toml to worktree root
+#   "scripts/setup.sh"    - copies scripts/setup.sh, creating scripts/ dir if needed
+#   "config/"             - recursively copies the config/ directory
+copy_files = ["mise.toml"]
+
+# Auto-trust mise.toml in worktrees when the source file is trusted
+# If enabled, checks if mise.toml is trusted in the main repo, and if so,
+# automatically trusts the copied mise.toml in the worktree
+auto_trust_mise = true
+
+# Skip Docker image build during automatic init on worktree creation
+# When true, `wt create` will only copy config files and skip the Docker build step.
+# When false (default), Docker images are built automatically.
+# skip_init_build = false
+
+[open]
+# Default path appended to the URL when running `wt open`
+# Set to "/admin" to go straight to the Django admin panel
+# path = "/admin"
+
+# Custom browser executable (overrides platform default: xdg-open/open/start)
+# browser = "/usr/bin/firefox"

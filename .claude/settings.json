@@ -10,6 +10,7 @@
       "~/Documents/vaults/main"
     ]
   },
+  "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -30,16 +31,25 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "worktree@ca-worktrees": true,
+    "worktree@ca-worktrees": false,
     "pyright-lsp@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": false,
+    "superpowers@claude-plugins-official": false,
     "context7@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "pr-review-toolkit@claude-plugins-official": true
+    "pr-review-toolkit@claude-plugins-official": true,
+    "sc-workflow@ca-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "ca-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/bhoman/src/github.com/bhoman-ca/ai/claude/plugins/ca-marketplace"
+      }
+    }
   },
   "alwaysThinkingEnabled": false,
   "agentPushNotifEnabled": true,

@@ -57,3 +57,5 @@ if OS.mac?
   cask "caffeine"
   cask "raycast"
 end
+cask "granola"
+cask "wispr-flow"

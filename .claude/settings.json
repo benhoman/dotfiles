@@ -5,10 +5,6 @@
     "CLAUDE_CODE_NEW_INIT": "1"
   },
   "permissions": {
-    "defaultMode": "auto",
-    "additionalDirectories": [
-      "~/Documents/vaults/main"
-    ],
     "deny": [
       "Read(//Users/bhoman/.local/state/consumeraffairs/mise_env.toml)",
       "Edit(//Users/bhoman/.local/state/consumeraffairs/mise_env.toml)",
@@ -21,6 +17,10 @@
       "Bash(bat *mise_env.toml*)",
       "Bash(grep * *mise_env.toml*)",
       "Bash(rg * *mise_env.toml*)"
+    ],
+    "defaultMode": "auto",
+    "additionalDirectories": [
+      "~/Documents/vaults/main"
     ]
   },
   "model": "opus[1m]",
@@ -44,7 +44,7 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "worktree@ca-worktrees": false,
+    "worktree@ca-worktrees": true,
     "pyright-lsp@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": false,
     "superpowers@claude-plugins-official": false,
@@ -53,14 +53,19 @@
     "code-simplifier@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "pr-review-toolkit@claude-plugins-official": true,
-    "sc-workflow@ca-marketplace": true
+    "pr-review-toolkit@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "ca-marketplace": {
       "source": {
         "source": "directory",
-        "path": "/Users/bhoman/src/github.com/bhoman-ca/ai/claude/plugins/ca-marketplace"
+        "path": "/Users/bhoman/src/github.com/bhoman-ca/ai/main/claude/plugins/ca-marketplace"
+      }
+    },
+    "ca-worktrees": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/bhoman/src/github.com/bhoman-ca/worktrees/dev"
       }
     }
   },

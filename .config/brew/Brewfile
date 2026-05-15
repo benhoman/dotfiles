@@ -30,6 +30,7 @@ if OS.mac?
   tap "felixkratz/formulae"
   tap "nikitabobko/tap"
   tap "barutsrb/tap"
+  tap "manaflow-ai/cmux"
 
   # Database
   brew "libpq"
@@ -56,6 +57,9 @@ if OS.mac?
   cask "lm-studio"
   cask "caffeine"
   cask "raycast"
+  cask "cmux"
 end
 cask "granola"
 cask "wispr-flow"
+brew "opencode"
+brew "pi-coding-agent"

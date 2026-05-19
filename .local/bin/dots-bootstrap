@@ -86,7 +86,7 @@ section "Homebrew packages"
 BREWFILE="$HOME/.config/brew/Brewfile"
 if [[ -f "$BREWFILE" ]]; then
   info "Running brew bundle..."
-  HOMEBREW_BUNDLE_FILE="$BREWFILE" brew bundle --no-lock
+  HOMEBREW_BUNDLE_FILE="$BREWFILE" brew bundle
   success "Homebrew packages installed"
 else
   warn "Brewfile not found at $BREWFILE — skipping"

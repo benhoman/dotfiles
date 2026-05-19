@@ -22,6 +22,7 @@ This applies even when the change is technically correct. Correctness is not the
 
 - Before any significant task, show 2-3 possible approaches and wait for a choice before proceeding
 - Never deploy, send, post, publish, or trigger any external action without an explicit yes in the current message — "you mentioned this earlier" is not confirmation
+- When a "no clarifying questions" directive is in effect and a skill or task has decision points that would normally prompt, state the guesses I'm making **before** writing files — not after. List the defaults I picked and why, so you can redirect before the work lands rather than after.
 
 ### Asking questions
 
@@ -33,6 +34,7 @@ This applies even when the change is technically correct. Correctness is not the
 ## Hard Stops
 
 The following require explicit in-session confirmation before executing, no exceptions:
+
 - Deploying or pushing to any environment
 - Running migrations or schema changes
 - Sending any external API call with side effects
@@ -48,13 +50,19 @@ The following require explicit in-session confirmation before executing, no exce
 ## Language — Python
 
 ### Typing
+
 - Always add typing where possible when writing new code.
 - Use Python 3.10+ typing style.
 
 ### Codestyle
+
 - Format code the way ruff would. Follow all ruff linting guidelines; use `pyproject.toml` for project-specific config.
 - Never import a module inside a function/class/method unless strictly necessary to avoid a circular import. Always import at the top of the file, sorted correctly.
 - Do imports after implementing the code so the linter doesn't remove them.
+
+## Shell
+
+- Executing shell is zsh, not bash. In Bash-tool blocks, avoid zsh-reserved variable names: `status`, `aliases`, `path`, `cdpath`, `fpath`, `manpath`, `prompt`. Use `st`, `als`, `p` etc. instead — these collide silently with zsh's built-in associative arrays and produce "read-only variable" / "attempt to set slice of associative array" errors.
 
 ## Obsidian Vault
 
@@ -68,6 +76,7 @@ The following require explicit in-session confirmation before executing, no exce
 ## /resume
 
 When you receive `/resume`:
+
 1. Read the relevant project note at vault root (e.g. `Match API.md`, `Advisor.md`) based on the current working directory or context
 2. If a Graphify graph exists for the project (`graphify-out/GRAPH_REPORT.md`), read it for structural orientation
 3. Summarize: current state of the project, open decisions, and what's pending
@@ -80,5 +89,8 @@ When you receive `/resume`:
 - Read both files at the start of every session before doing anything
 
 # graphify
+
 - **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` before doing anything else.
+
+@RTK.md

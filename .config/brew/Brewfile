@@ -25,6 +25,8 @@ brew "wget"
 brew "zoxide"
 
 cask "codex"
+brew "opencode"
+brew "pi-coding-agent"
 
 # macOS only
 if OS.mac?
@@ -59,8 +61,7 @@ if OS.mac?
   cask "caffeine"
   cask "raycast"
   cask "cmux"
+  cask "stats"
+  cask "granola"
+  cask "wispr-flow"
 end
-cask "granola"
-cask "wispr-flow"
-brew "opencode"
-brew "pi-coding-agent"

@@ -24,6 +24,7 @@ brew "watch"
 brew "wget"
 brew "zoxide"
 
+brew "duckdb"
 cask "codex"
 brew "opencode"
 brew "pi-coding-agent"

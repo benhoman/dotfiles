@@ -36,11 +36,6 @@ if OS.mac?
   tap "barutsrb/tap"
   tap "manaflow-ai/cmux"
 
-  # Database
-  brew "libpq"
-  brew "pgformatter"
-  brew "postgresql@18", restart_service: :changed, link: true
-
   # WM / bar
   brew "felixkratz/formulae/sketchybar"
   cask "nikitabobko/tap/aerospace"
@@ -63,6 +58,20 @@ if OS.mac?
   cask "raycast"
   cask "cmux"
   cask "stats"
-  cask "granola"
-  cask "wispr-flow"
+
+  # Work Apps
+  if ENV["MACHINE_TYPE"] == "work"
+    cask "granola"
+    cask "wispr-flow"
+
+    # Database
+    brew "libpq"
+    brew "pgformatter"
+    brew "postgresql@18", restart_service: :changed, link: true
+  end
+
+  if ENV["MACHINE_TYPE"] == "personal"
+    cask "1password"
+  end
+
 end

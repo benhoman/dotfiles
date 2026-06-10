@@ -1,3 +1,5 @@
+machine_type = ENV["HOMEBREW_MACHINE_TYPE"]
+
 # Core tools — all platforms
 brew "bat"
 brew "eza"
@@ -60,7 +62,7 @@ if OS.mac?
   cask "stats"
 
   # Work Apps
-  if ENV["MACHINE_TYPE"] == "work"
+  if machine_type == "work"
     cask "granola"
     cask "wispr-flow"
 
@@ -70,8 +72,11 @@ if OS.mac?
     brew "postgresql@18", restart_service: :changed, link: true
   end
 
-  if ENV["MACHINE_TYPE"] == "personal"
+  if machine_type == "personal"
     cask "1password"
+    cask "1password-cli"
+    cask "brave-browser"
+    brew "tailscale"
   end
 
 end

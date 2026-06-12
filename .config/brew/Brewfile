@@ -78,6 +78,12 @@ if OS.mac?
     cask "brave-browser"
     brew "tailscale"
     cask "zen"
+
+    brew "yt-dlp"
+    brew "ffmpeg"
+
+    # tap "iina/homebrew-mpv-iina"
+    # brew "mpv-iina", args: ["HEAD"]
   end
 
 end
